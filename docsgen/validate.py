@@ -8,7 +8,9 @@ from pathlib import Path
 VOID = {"meta", "link", "br", "hr", "img", "input", "col", "area", "base", "source", "track", "wbr"}
 URL_ATTRS = ("src", "href", "poster", "action", "data", "srcset")
 EXTERNAL = re.compile(r"^(?:[a-z][a-z0-9+.-]*:|//)", re.IGNORECASE)
-PLACEHOLDER = re.compile(r"\{\{|\}\}|ZXSTASH|ZXCODE")
+PLACEHOLDER = re.compile(r"\{\{|\}\}")
+INTERNAL_TOKEN = re.compile(r"ZXSTASH|ZXCODE")
+CODE_BLOCK = re.compile(r"<pre\b.*?</pre>|<code\b.*?</code>", re.DOTALL | re.IGNORECASE)
 
 
 class _Collector(HTMLParser):
@@ -131,9 +133,10 @@ def check_html(text: str) -> list[str]:
         problems.append(f"{p.pre_without_label} <pre> block(s) without tabindex or aria-label")
     if "<script" in text.lower():
         problems.append("<script> found")
-    if "@import" in text or "url(" in text:
+    prose = CODE_BLOCK.sub("", text)  # displayed code may legitimately mention url( or braces
+    if "@import" in prose or "url(" in prose:
         problems.append("stylesheet references an external resource")
-    if PLACEHOLDER.search(text):
+    if PLACEHOLDER.search(prose) or INTERNAL_TOKEN.search(text):
         problems.append("unresolved placeholder ({{ }} or internal token) left in the page")
     return problems
 

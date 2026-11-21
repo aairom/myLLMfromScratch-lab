@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>8. Implementation guide: the educational content layer – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 8 of 10 · Implementation guide</p>
+<h1>8. Implementation guide: the educational content layer</h1>
+<p class="lede">Lessons as data, LaTeX formulas and code snippets read live from the running source.</p>
+<ul class="badges" aria-label="Key facts"><li>934 words</li><li>11 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="08_educational_content_explanation.html">Explanation</a><a href="08_educational_content_implementation_guide.html" aria-current="page">Implementation guide</a><a href="07_visualization_implementation_guide.html">← 7. Visualization layer</a><a href="09_streamlit_app_implementation_guide.html">9. Streamlit application and learning pages →</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#role-in-the-project">Role in the project</a></li><li><a href="#module-map">Module map</a></li><li><a href="#data-structures">Data structures</a><ul><li><a href="#lookup">Lookup</a></li></ul></li><li><a href="#the-snippet-resolver">The snippet resolver</a></li><li><a href="#rendering">Rendering</a><ul><li><a href="#which-pages-show-which-lesson">Which pages show which lesson</a></li></ul></li><li><a href="#writing-a-new-lesson">Writing a new lesson</a></li><li><a href="#integration-points">Integration points</a></li><li><a href="#configuration-and-environment">Configuration and environment</a></li><li><a href="#runtime-behaviour">Runtime behaviour</a></li><li><a href="#tests">Tests</a></li><li><a href="#common-pitfalls">Common pitfalls</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_implementation_guide.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_implementation_guide.html">Tokenization</a></li><li><a href="03_embeddings_positional_implementation_guide.html">Embeddings and positional encoding</a></li><li><a href="04_attention_layers_implementation_guide.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_implementation_guide.html">Full transformer (GPT) and generation</a></li><li><a href="06_training_pipeline_implementation_guide.html">Training pipeline</a></li><li><a href="07_visualization_implementation_guide.html">Visualization layer</a></li><li aria-current="step"><a href="08_educational_content_implementation_guide.html">Educational content layer</a></li><li><a href="09_streamlit_app_implementation_guide.html">Streamlit application and learning pages</a></li><li><a href="10_scripts_docs_compliance_implementation_guide.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="role-in-the-project">Role in the project</h2>
+<p><code>edu/</code> holds everything a learner reads that is not a chart: the text, the formulas, the tensor shapes and the pointers to live code. It has no Streamlit import and no model state, so it can be tested as plain data. <code>ui/components.py</code> turns a lesson into three Streamlit tabs, and the pages call it with one line.</p>
+<figure class="flow"><figcaption>From lesson data to the screen</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code> edu/lessons.py            _LESSONS (13 frozen Lesson records)     LESSONS dict, get_lesson(key), all_lessons()
+        |                                                   
+        |  lesson.snippets = (&quot;llm.attention.causal_mask&quot;, ...)    dotted paths, not copied code
+        v
+ edu/snippets.py           resolve(path) -&gt; object   get_source(path) -&gt; str (inspect.getsource, dedented)
+        |
+        v
+ ui/components.py          lesson_tabs(key, extra_sources)
+        |-- Explain tab   render_explain(lesson)   intuition, numbered steps, pitfalls expander
+        |-- Math tab      render_math(lesson)      st.latex(formula) + meaning, shape table
+        &#x27;-- Code tab      render_code(lesson)      st.code(source) per snippet, first expanded</code></pre></figure>
+<h2 id="module-map">Module map</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>File</th>
+<th>Lines</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>edu/lessons.py</code></td>
+<td>517</td>
+<td><code>Formula</code>, <code>Lesson</code>, the 13 lessons, <code>LESSONS</code>, <code>get_lesson</code>, <code>all_lessons</code></td>
+</tr>
+<tr>
+<td><code>edu/snippets.py</code></td>
+<td>64</td>
+<td><code>SnippetError</code>, <code>resolve</code>, <code>get_source</code>, <code>get_docstring</code>, <code>line_count</code></td>
+</tr>
+<tr>
+<td><code>ui/components.py</code></td>
+<td>98</td>
+<td><code>init_page</code>, <code>plot</code>, <code>int_slider</code>, <code>lesson_tabs</code>, <code>render_explain</code>, <code>render_math</code>, <code>render_code</code>, <code>page_header</code>, <code>empty_state</code></td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td></td>
+<td><code>test_lessons.py</code> 54 (parametrised over the 13 lessons), <code>test_snippets.py</code> 10, <code>test_components.py</code> 7</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="data-structures">Data structures</h2>
+<figure class="source"><figcaption>edu/lessons.py, lines 12-17: edu.lessons.Formula</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Formula</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A LaTeX expression with a plain-language reading of it."""</span>
+
+    <span class="n">latex</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">meaning</span><span class="p">:</span> <span class="nb">str</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>edu/lessons.py, lines 20-31: edu.lessons.Lesson</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Lesson</span><span class="p">:</span>
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">summary</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># one line, used on the home page</span>
+    <span class="n">intuition</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># markdown</span>
+    <span class="n">steps</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>  <span class="c1"># ordered walkthrough, one sentence each</span>
+    <span class="n">formulas</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Formula</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">shapes</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>  <span class="c1"># (tensor, shape, meaning)</span>
+    <span class="n">pitfalls</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">snippets</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>  <span class="c1"># dotted paths for edu.snippets.get_source</span>
+    <span class="n">related</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">tuple</span><span class="p">)</span>  <span class="c1"># keys of related lessons</span>
+</code></pre></div>
+</figure>
+<figure class="flow"><figcaption>Shape of the content (totals over the 13 lessons)</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>Lesson ─┬─ key, title, summary, intuition (Markdown)
+        ├─ steps     tuple[str]                    57 sentences, 3 to 6 per lesson
+        ├─ formulas  tuple[Formula(latex, meaning)] 34 formulas
+        ├─ shapes    tuple[(tensor, shape, meaning)]
+        ├─ pitfalls  tuple[str]                    24 items, at least 1 per lesson
+        ├─ snippets  tuple[dotted path]            26 paths, 638 source lines
+        └─ related   tuple[key]                    other lesson keys</code></pre></figure>
+<p>Teaching order, which <code>all_lessons()</code> preserves:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Key</th>
+<th>Steps</th>
+<th>Formulas</th>
+<th>Pitfalls</th>
+<th>Snippets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>tokenization</code></td>
+<td>6</td>
+<td>2</td>
+<td>3</td>
+<td>3</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>embeddings</code></td>
+<td>4</td>
+<td>2</td>
+<td>2</td>
+<td>2</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>positional</code></td>
+<td>3</td>
+<td>3</td>
+<td>2</td>
+<td>2</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>attention</code></td>
+<td>6</td>
+<td>3</td>
+<td>3</td>
+<td>3</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>multihead</code></td>
+<td>5</td>
+<td>3</td>
+<td>2</td>
+<td>3</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>layernorm</code></td>
+<td>4</td>
+<td>3</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>ffn</code></td>
+<td>4</td>
+<td>2</td>
+<td>1</td>
+<td>2</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>residual</code></td>
+<td>4</td>
+<td>3</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>model</code></td>
+<td>5</td>
+<td>2</td>
+<td>1</td>
+<td>2</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>loss</code></td>
+<td>3</td>
+<td>3</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>optimizer</code></td>
+<td>5</td>
+<td>4</td>
+<td>2</td>
+<td>3</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>schedule</code></td>
+<td>3</td>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>sampling</code></td>
+<td>5</td>
+<td>2</td>
+<td>2</td>
+<td>2</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="lookup">Lookup</h3>
+<figure class="source"><figcaption>edu/lessons.py, lines 507-512: edu.lessons.get_lesson</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_lesson</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Lesson</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the lesson with this key (``KeyError`` listing valid keys otherwise)."""</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">LESSONS</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown lesson </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">; available: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">LESSONS</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+</code></pre></div>
+</figure>
+<p><code>get_lesson</code> raises a <code>KeyError</code> whose message lists the valid keys, so a typo in a page is diagnosed immediately.</p>
+<h2 id="the-snippet-resolver">The snippet resolver</h2>
+<figure class="source"><figcaption>edu/snippets.py, lines 18-43: edu.snippets.resolve</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">resolve</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Resolve ``"package.module.Class.method"`` to the Python object it names.</span>
+
+<span class="sd">    The longest importable module prefix is imported, then the remaining parts</span>
+<span class="sd">    are looked up as attributes.</span>
+<span class="sd">    """</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"."</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">SnippetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">!r}</span><span class="s2">: expected 'module.symbol'"</span><span class="p">)</span>
+    <span class="n">obj</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">attrs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">cut</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>  <span class="c1"># longest module prefix first</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="s2">"."</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">[:</span><span class="n">cut</span><span class="p">]))</span>
+            <span class="n">attrs</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="n">cut</span><span class="p">:]</span>
+            <span class="k">break</span>
+        <span class="k">except</span> <span class="ne">ModuleNotFoundError</span><span class="p">:</span>
+            <span class="k">continue</span>
+    <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">SnippetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">!r}</span><span class="s2">: no importable module in this path"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SnippetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> not found"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+    <span class="k">return</span> <span class="n">obj</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>edu/snippets.py, lines 46-54: edu.snippets.get_source</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_source</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Dedented source code (with comments and docstring) of the symbol at ``path``."""</span>
+    <span class="n">obj</span> <span class="o">=</span> <span class="n">resolve</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">inspect</span><span class="o">.</span><span class="n">ismodule</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">SnippetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">!r}</span><span class="s2"> is a module; point to a class or function"</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">textwrap</span><span class="o">.</span><span class="n">dedent</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">getsource</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">SnippetError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">!r}</span><span class="s2">: source unavailable (</span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+</code></pre></div>
+</figure>
+<figure class="flow"><figcaption>resolve(&quot;llm.transformer.GPT.generate&quot;)</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>parts = [&quot;llm&quot;, &quot;transformer&quot;, &quot;GPT&quot;, &quot;generate&quot;]
+try import &quot;llm.transformer.GPT&quot;     ModuleNotFoundError -&gt; shorter prefix
+try import &quot;llm.transformer&quot;         ok  -&gt; obj = module, attrs = [&quot;GPT&quot;, &quot;generate&quot;]
+getattr(obj, &quot;GPT&quot;) -&gt; class         getattr(class, &quot;generate&quot;) -&gt; function
+get_source -&gt; textwrap.dedent(inspect.getsource(function)).rstrip() + &quot;\n&quot;</code></pre></figure>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a function, class or method</td>
+<td>its dedented source, comments and docstring included</td>
+</tr>
+<tr>
+<td>a module path</td>
+<td><code>SnippetError</code> ("point to a class or function")</td>
+</tr>
+<tr>
+<td>a path with fewer than two parts</td>
+<td><code>SnippetError</code></td>
+</tr>
+<tr>
+<td>a name that does not exist</td>
+<td><code>SnippetError</code> naming the missing attribute</td>
+</tr>
+<tr>
+<td>a built-in without source</td>
+<td><code>SnippetError</code> ("source unavailable")</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>SnippetError</code> subclasses <code>LookupError</code>, so callers can catch either. <code>get_docstring</code> returns the cleaned docstring and <code>line_count</code> the number of source lines.</p>
+<div class="admonition note">
+<p class="admonition-title">Why the longest module prefix is tried first</p>
+<p>A path such as <code>llm.transformer.GPT</code> could be read as module <code>llm</code>, attribute <code>transformer</code>. Trying the longest importable prefix first resolves it as module <code>llm.transformer</code> with attribute <code>GPT</code>, which is what the author meant.</p>
+</div>
+<h2 id="rendering">Rendering</h2>
+<figure class="source"><figcaption>ui/components.py, lines 38-47: ui.components.lesson_tabs</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">lesson_tabs</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">extra_sources</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">())</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Explain / Math / Code tabs for the lesson ``key``."""</span>
+    <span class="n">lesson</span> <span class="o">=</span> <span class="n">get_lesson</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="n">explain</span><span class="p">,</span> <span class="n">math_tab</span><span class="p">,</span> <span class="n">code</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">tabs</span><span class="p">([</span><span class="s2">"Explain"</span><span class="p">,</span> <span class="s2">"Math"</span><span class="p">,</span> <span class="s2">"Code"</span><span class="p">])</span>
+    <span class="k">with</span> <span class="n">explain</span><span class="p">:</span>
+        <span class="n">render_explain</span><span class="p">(</span><span class="n">lesson</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">math_tab</span><span class="p">:</span>
+        <span class="n">render_math</span><span class="p">(</span><span class="n">lesson</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">code</span><span class="p">:</span>
+        <span class="n">render_code</span><span class="p">(</span><span class="n">lesson</span><span class="p">,</span> <span class="n">extra_sources</span><span class="p">)</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>ui/components.py, lines 74-84: ui.components.render_code</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">render_code</span><span class="p">(</span><span class="n">lesson</span><span class="p">:</span> <span class="n">Lesson</span><span class="p">,</span> <span class="n">extra_sources</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">())</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Show the real source of each snippet; the comments in it are the explanation."""</span>
+    <span class="n">st</span><span class="o">.</span><span class="n">caption</span><span class="p">(</span><span class="s2">"This is the code that actually runs in this app, read live from the source files."</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">lesson</span><span class="o">.</span><span class="n">snippets</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">extra_sources</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">source</span> <span class="o">=</span> <span class="n">get_source</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">SnippetError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>  <span class="c1"># never break a page over a missing snippet</span>
+            <span class="n">st</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Snippet `</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">` is unavailable: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">with</span> <span class="n">st</span><span class="o">.</span><span class="n">expander</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">expanded</span><span class="o">=</span><span class="n">path</span> <span class="o">==</span> <span class="n">lesson</span><span class="o">.</span><span class="n">snippets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">lesson</span><span class="o">.</span><span class="n">snippets</span> <span class="k">else</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="n">st</span><span class="o">.</span><span class="n">code</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s2">"python"</span><span class="p">)</span>
+</code></pre></div>
+</figure>
+<p>The Code tab catches <code>SnippetError</code>, shows a <code>st.warning</code> that names the path and continues, so a broken snippet never breaks a page. The first snippet of a lesson is expanded and the others are collapsed.</p>
+<h3 id="which-pages-show-which-lesson">Which pages show which lesson</h3>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Page</th>
+<th>Lesson</th>
+<th>Extra sources shown after the lesson's own</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>page_tokenization.py</code></td>
+<td><code>tokenization</code></td>
+<td><code>llm.tokenizer.BPETokenizer.train</code></td>
+</tr>
+<tr>
+<td><code>page_embeddings.py</code></td>
+<td><code>embeddings</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>page_positional.py</code></td>
+<td><code>positional</code></td>
+<td><code>llm.positional.sinusoidal_table</code></td>
+</tr>
+<tr>
+<td><code>page_attention.py</code></td>
+<td><code>attention</code></td>
+<td><code>llm.attention.scaled_dot_product_attention</code></td>
+</tr>
+<tr>
+<td><code>page_multihead.py</code></td>
+<td><code>multihead</code></td>
+<td><code>llm.attention.MultiHeadAttention</code></td>
+</tr>
+<tr>
+<td><code>page_norm_ffn.py</code></td>
+<td><code>layernorm</code> and <code>ffn</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>page_transformer.py</code></td>
+<td><code>model</code></td>
+<td><code>llm.transformer.TransformerBlock</code>, <code>llm.transformer.GPT.forward</code></td>
+</tr>
+<tr>
+<td><code>page_training.py</code></td>
+<td><code>optimizer</code></td>
+<td><code>training.trainer.train</code>, <code>training.optimizers.Adam</code></td>
+</tr>
+<tr>
+<td><code>page_inference.py</code></td>
+<td><code>sampling</code></td>
+<td><code>llm.transformer.next_token_distribution</code>, <code>llm.transformer.GPT.generate</code></td>
+</tr>
+<tr>
+<td><code>page_home.py</code></td>
+<td>all 13, as title and summary lines</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<p>The <code>residual</code>, <code>loss</code> and <code>schedule</code> lessons have no page of their own with tabs: they appear as a line on the home page. Their snippets and formulas are still validated by the tests.</p>
+<h2 id="writing-a-new-lesson">Writing a new lesson</h2>
+<ol>
+<li>Add a <code>Lesson(...)</code> to <code>_LESSONS</code> at the position in the teaching order where it belongs. The key must be unique.</li>
+<li>Provide every section: an intuition of more than 100 characters, at least three steps, at least one formula, one shape row, one pitfall and one snippet path.</li>
+<li>Write LaTeX without dollar signs (it is passed to <code>st.latex</code>), with balanced braces and matching <code>\left</code> and <code>\right</code>.</li>
+<li>Add the key to <code>EXPECTED_KEYS</code> in <code>tests/test_lessons.py</code>.</li>
+<li>Call <code>page_header(key)</code> and <code>lesson_tabs(key)</code> from a page.</li>
+</ol>
+<h2 id="integration-points">Integration points</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Interaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pages/page_*.py</code></td>
+<td><code>page_header</code> and <code>lesson_tabs</code></td>
+</tr>
+<tr>
+<td><code>pages/page_home.py</code></td>
+<td>iterates <code>all_lessons()</code> for the learning path</td>
+</tr>
+<tr>
+<td><code>docsgen.render</code></td>
+<td>reuses <code>edu.snippets</code> for the <code>{{source:...}}</code> directive of this documentation</td>
+</tr>
+<tr>
+<td><code>llm</code>, <code>training</code>, <code>ui</code></td>
+<td>the lesson text refers to them by dotted path only; they do not import <code>edu</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="configuration-and-environment">Configuration and environment</h2>
+<p>No variable and no file is read. The content is in the Python source, and the only runtime input is the lesson key.</p>
+<h2 id="runtime-behaviour">Runtime behaviour</h2>
+<ul>
+<li><code>LESSONS</code> is built once at import time. Lookups are dictionary reads.</li>
+<li>Source is read through <code>inspect</code> on every call; the cost is a file read, which is negligible for 26 snippets.</li>
+<li>If a source file is edited while the app runs, the next page reload shows the new code only after Python re-imports the module (Streamlit reloads modules on a script change).</li>
+<li>Unknown keys raise <code>KeyError</code>; unknown snippet paths raise <code>SnippetError</code>, which the Code tab turns into a warning.</li>
+</ul>
+<h2 id="tests">Tests</h2>
+<p><code>test_lessons.py</code> checks that exactly the 13 expected keys exist in teaching order, that every lesson has every section, that every snippet path returns non-empty source, that related keys exist and never include the lesson itself, that LaTeX braces and <code>\left</code> and <code>\right</code> are balanced and contain no dollar signs, and that <code>get_lesson</code> reports a helpful error. <code>test_snippets.py</code> covers classes, functions, methods, preserved comments, bad paths and built-ins. <code>test_components.py</code> drives the real components with Streamlit's <code>AppTest</code>: each of the 13 lessons renders the tabs Explain, Math and Code, and a missing snippet produces a warning.</p>
+<h2 id="common-pitfalls">Common pitfalls</h2>
+<ul>
+<li><strong>Forgetting that the prose is not checked against the code.</strong> Update the lesson in the same change as the behaviour.</li>
+<li><strong>Dollar signs in a formula.</strong> They are rejected by a test because <code>st.latex</code> expects raw LaTeX.</li>
+<li><strong>Renaming a function without searching the lessons.</strong> A stale path is caught by the snippet test, but only if the test suite is run.</li>
+<li><strong>Expecting a page for every lesson.</strong> Three lessons are shown only on the home page.</li>
+</ul>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>

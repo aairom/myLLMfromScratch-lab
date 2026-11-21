@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>7. Visualization of tensors and training dynamics – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 7 of 10 · Scientific explanation</p>
+<h1>7. Visualization of tensors and training dynamics</h1>
+<p class="lede">Plotly figure builders: PCA projections, heat maps, attention maps and live training curves.</p>
+<ul class="badges" aria-label="Key facts"><li>2,217 words</li><li>13 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="07_visualization_explanation.html" aria-current="page">Explanation</a><a href="07_visualization_implementation_guide.html">Implementation guide</a><a href="06_training_pipeline_explanation.html">← 6. Training pipeline</a><a href="08_educational_content_explanation.html">8. Educational content layer →</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#abstract">Abstract</a></li><li><a href="#why-visualise-a-model-at-all">Why visualise a model at all</a></li><li><a href="#from-a-tensor-to-a-visual-channel">From a tensor to a visual channel</a><ul><li><a href="#colour-scales-and-the-zero-point">Colour scales and the zero point</a></li></ul></li><li><a href="#projecting-embeddings-principal-component-analysis">Projecting embeddings: principal component analysis</a><ul><li><a href="#why-the-sign-of-a-component-is-arbitrary">Why the sign of a component is arbitrary</a></li><li><a href="#degenerate-inputs">Degenerate inputs</a></li></ul></li><li><a href="#cosine-similarity">Cosine similarity</a></li><li><a href="#visualising-attention">Visualising attention</a></li><li><a href="#visualising-layer-normalisation">Visualising layer normalisation</a></li><li><a href="#visualising-training">Visualising training</a><ul><li><a href="#smoothing">Smoothing</a></li><li><a href="#reference-line">Reference line</a></li><li><a href="#missing-values">Missing values</a></li><li><a href="#logarithmic-axes">Logarithmic axes</a></li></ul></li><li><a href="#visualising-the-data-flow">Visualising the data flow</a></li><li><a href="#design-principles-used-throughout">Design principles used throughout</a></li><li><a href="#limitations">Limitations</a></li><li><a href="#where-to-go-next">Where to go next</a></li><li><a href="#references">References</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_explanation.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_explanation.html">Tokenization</a></li><li><a href="03_embeddings_positional_explanation.html">Embeddings and positional encoding</a></li><li><a href="04_attention_layers_explanation.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_explanation.html">Full transformer (GPT) and generation</a></li><li><a href="06_training_pipeline_explanation.html">Training pipeline</a></li><li aria-current="step"><a href="07_visualization_explanation.html">Visualization layer</a></li><li><a href="08_educational_content_explanation.html">Educational content layer</a></li><li><a href="09_streamlit_app_explanation.html">Streamlit application and learning pages</a></li><li><a href="10_scripts_docs_compliance_explanation.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="abstract">Abstract</h2>
+<p>A transformer is a pile of tensors, and tensors are hard to read as numbers. This sub-task builds the layer that turns them into pictures: heat maps for matrices, a two-dimensional projection for embeddings, small multiples for heads, and line charts for training. The document explains the scientific ideas behind the figures (principal component analysis, cosine similarity, perceptual encodings of magnitude, smoothing) and the design rules that keep the figures honest: a figure must never invent structure that is not in the data, and it must say plainly when there is nothing to show.</p>
+<h2 id="why-visualise-a-model-at-all">Why visualise a model at all</h2>
+<p>Neural networks are opaque by construction: millions of numbers interact non-linearly. Visualisation is one of the oldest tools for <strong>interpretability</strong>. Attention maps were used from the first neural translation systems to check that the model aligned words sensibly (Bahdanau et al., 2015), and projections of word vectors showed that directions in the embedding space encode relations (Mikolov et al., 2013). Two cautions apply, and the application states both next to its figures:</p>
+<ol>
+<li>A picture is a <em>view</em> of the data, not an explanation of the model. An attention weight says where information <em>could</em> flow, not that the prediction depends on it (Jain and Wallace, 2019).</li>
+<li>Every projection discards information. A 2-D scatter of 64-dimensional vectors shows the largest directions of variation and nothing else.</li>
+</ol>
+<h2 id="from-a-tensor-to-a-visual-channel">From a tensor to a visual channel</h2>
+<p>Cleveland and McGill (1984) ranked how accurately people decode quantitative information from different visual channels. Position along a common scale is decoded best, length next, and colour intensity worst. The consequence for this project is a division of labour:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Typical shape</th>
+<th>Encoding</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Loss, learning rate, gradient norm over steps</td>
+<td>a sequence</td>
+<td>line (position on two aligned scales)</td>
+<td>accurate, shows trend and noise</td>
+</tr>
+<tr>
+<td>Parameters per component</td>
+<td>a handful of totals</td>
+<td>horizontal bar (length)</td>
+<td>easy comparison</td>
+</tr>
+<tr>
+<td>Attention weights, embeddings, positional table</td>
+<td>a matrix</td>
+<td>heat map (colour)</td>
+<td>the only practical encoding for hundreds of cells, so a colour bar and a fixed range are always provided</td>
+</tr>
+<tr>
+<td>Embeddings of many tokens</td>
+<td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>N</mi><mo>&#x000D7;</mo><mi>D</mi></mrow></math></td>
+<td>2-D scatter after projection</td>
+<td>position again, at the price of a projection</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="colour-scales-and-the-zero-point">Colour scales and the zero point</h3>
+<p>Two kinds of matrices need two kinds of colour scale.</p>
+<ul>
+<li><strong>Diverging data</strong> such as embedding components, queries, keys, raw attention scores and normalised activations have a meaningful zero. A diverging palette centred on zero (<code>RdBu</code>, <code>zmid = 0</code>) makes the sign visible.</li>
+<li><strong>Probabilities</strong> such as attention weights live in <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">[</mo><mn>0</mn><mo>&#x0002C;</mo><mn>1</mn><mo stretchy="false">]</mo></mrow></math>. A sequential palette (<code>Blues</code>) with the range pinned to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">[</mo><mn>0</mn><mo>&#x0002C;</mo><mn>1</mn><mo stretchy="false">]</mo></mrow></math> makes different heads and different runs comparable. Letting each figure auto-scale would make a nearly uniform attention matrix look as contrasted as a sharp one.</li>
+</ul>
+<p>Cosine similarity is pinned to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">[</mo><mo>&#x02212;</mo><mn>1</mn><mo>&#x0002C;</mo><mn>1</mn><mo stretchy="false">]</mo></mrow></math> for the same reason.</p>
+<h2 id="projecting-embeddings-principal-component-analysis">Projecting embeddings: principal component analysis</h2>
+<p>An embedding table has one row per token and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>D</mi></mrow></math> columns. To draw it we need a map <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>&#x0211D;</mi><mi>D</mi></msup><mo>&#x02192;</mo><msup><mi>&#x0211D;</mi><mn>2</mn></msup></mrow></math> that keeps as much of the structure as possible. Principal component analysis (Pearson, 1901; Hotelling, 1933) chooses the linear map that preserves the most <strong>variance</strong>.</p>
+<p>Let <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>X</mi><mo>&#x02208;</mo><msup><mi>&#x0211D;</mi><mrow><mi>N</mi><mo>&#x000D7;</mo><mi>D</mi></mrow></msup></mrow></math> hold the vectors as rows and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mover><mrow><mi>X</mi></mrow><mo stretchy="true">&#x000AF;</mo></mover><mo>&#x0003D;</mo><mi>X</mi><mo>&#x02212;</mo><mrow><mn mathvariant="bold">1</mn></mrow><msup><mrow><mi mathvariant="bold-italic">&#x003BC;</mi></mrow><mrow><mo>&#x022A4;</mo></mrow></msup></mrow></math> the same rows with the mean subtracted. The singular value decomposition</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mover><mrow><mi>X</mi></mrow><mo stretchy="true">&#x000AF;</mo></mover><mo>&#x0003D;</mo><mi>U</mi><mi>&#x003A3;</mi><msup><mi>V</mi><mrow><mo>&#x022A4;</mo></mrow></msup></mrow></math></div>
+<p>gives the principal directions as the columns of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>V</mi></mrow></math> and the variance along each as <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msubsup><mi>&#x003C3;</mi><mi>i</mi><mn>2</mn></msubsup><mo>&#x0002F;</mo><mo stretchy="false">&#x00028;</mo><mi>N</mi><mo>&#x02212;</mo><mn>1</mn><mo stretchy="false">&#x00029;</mo></mrow></math>. The 2-D coordinates are the projections on the first two directions,</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>Z</mi><mo>&#x0003D;</mo><mover><mrow><mi>X</mi></mrow><mo stretchy="true">&#x000AF;</mo></mover><mspace width="0.167em" /><msub><mi>V</mi><mrow><mi>:</mi><mo>&#x0002C;</mo><mn>1</mn><mi>:</mi><mn>2</mn></mrow></msub><mo>&#x0002C;</mo><mspace width="2em" /><mtext>explained&#x000A0;variance&#x000A0;ratio&#x000A0;of&#x000A0;component&#x000A0;</mtext><mi>i</mi><mi>:</mi><mspace width="1em" /><msub><mi>&#x003C1;</mi><mi>i</mi></msub><mo>&#x0003D;</mo><mfrac><mrow><msubsup><mi>&#x003C3;</mi><mi>i</mi><mn>2</mn></msubsup></mrow><mrow><msub><mo>&#x02211;</mo><mi>j</mi></msub><msubsup><mi>&#x003C3;</mi><mi>j</mi><mn>2</mn></msubsup></mrow></mfrac><mo>&#x0002E;</mo></mrow></math></div>
+<p>The figure title reports <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C1;</mi><mn>1</mn></msub><mo>&#x0002B;</mo><msub><mi>&#x003C1;</mi><mn>2</mn></msub></mrow></math>, so a reader always knows how much of the data the picture shows.</p>
+<div class="admonition note">
+<p class="admonition-title">Reading a PCA plot of a freshly initialised model</p>
+<p>The default token table is drawn from a normal distribution, so no direction is special. Measured on the default model before training, the first two components explain only about 12 % of the variance (6.4 % and 5.9 %). That is what random data looks like: the scatter shows no structure because there is none. Compare it with the sinusoidal positional table, which is highly structured: its first two components explain about 37 % of the variance (23 % and 14 %).</p>
+</div>
+<h3 id="why-the-sign-of-a-component-is-arbitrary">Why the sign of a component is arbitrary</h3>
+<p>If <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>v</mi></mrow></math> is a principal direction then so is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mi>v</mi></mrow></math>. A figure may therefore flip between runs without anything having changed. The implementation does not try to fix a sign; it only guarantees that the explained variance and the pairwise distances are the same.</p>
+<h3 id="degenerate-inputs">Degenerate inputs</h3>
+<p>With a single row, no column, or identical rows, the variance is zero and the decomposition carries no information. The function returns zero coordinates and zero explained variance rather than raising an exception. This is a design choice: a page that is being explored interactively must not crash when the user selects one token.</p>
+<h2 id="cosine-similarity">Cosine similarity</h2>
+<p>Euclidean distance between embeddings mixes two things, the <strong>direction</strong> of a vector and its <strong>length</strong>. Cosine similarity isolates the direction:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>cos</mi><mo stretchy="false">&#x00028;</mo><mi>&#x1D41A;</mi><mo>&#x0002C;</mo><mi>&#x1D41B;</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mfrac><mrow><mi>&#x1D41A;</mi><mo>&#x000B7;</mo><mi>&#x1D41B;</mi></mrow><mrow><mo>&#x02016;</mo><mi>&#x1D41A;</mi><mo>&#x02016;</mo><mspace width="0.167em" /><mo>&#x02016;</mo><mi>&#x1D41B;</mi><mo>&#x02016;</mo></mrow></mfrac><mo>&#x02208;</mo><mo stretchy="false">[</mo><mo>&#x02212;</mo><mn>1</mn><mo>&#x0002C;</mo><mn>1</mn><mo stretchy="false">]</mo><mo>&#x0002E;</mo></mrow></math></div>
+<p>Dividing every row by its norm gives unit vectors <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mover accent="true"><mrow><mi>&#x1D41A;</mi></mrow><mo>&#x0005E;</mo></mover><mi>i</mi></msub></mrow></math>, and the whole matrix is one product, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>S</mi><mo>&#x0003D;</mo><mover accent="true"><mrow><mi>X</mi></mrow><mo>&#x0005E;</mo></mover><msup><mover accent="true"><mrow><mi>X</mi></mrow><mo>&#x0005E;</mo></mover><mrow><mo>&#x022A4;</mo></mrow></msup></mrow></math>, whose diagonal is exactly 1. A tiny constant keeps the division defined for a zero vector.</p>
+<p>Two measured baselines help to read the heat maps:</p>
+<ul>
+<li><strong>Random token vectors.</strong> In 64 dimensions two independent random vectors are nearly orthogonal. For the 51 default tokens the off-diagonal similarities have mean about 0.003 and standard deviation about 0.13. A trained table should deviate from this baseline for tokens that behave alike.</li>
+<li><strong>Sinusoidal positions.</strong> Neighbouring positions are similar and distant ones less so. For the 64-position table the similarity between positions 0 and 1 is about 0.97, between 0 and 32 about 0.61, and between 0 and 63 about 0.45. The matrix shows a smooth band structure around the diagonal, which is the visible trace of the multi-frequency design of sub-task 3.</li>
+</ul>
+<h2 id="visualising-attention">Visualising attention</h2>
+<p>An attention heat map has the <strong>query</strong> (the position that is looking) on the rows and the <strong>key</strong> (the position being looked at) on the columns. Three conventions matter:</p>
+<ol>
+<li><strong>Rows sum to one</strong>, so a row is a probability distribution and can be read as "where does this token get its information".</li>
+<li><strong>The causal mask is shown as blank cells</strong>, not as zeros. Before the softmax the masked scores are <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mo>&#x0221E;</mo></mrow></math>; the helper maps non-finite values to <code>NaN</code>, which the heat map leaves empty. A reader can then see which cells were <em>excluded</em> and which were merely <em>small</em>.</li>
+<li><strong>Repeated tokens need unique labels.</strong> A categorical axis merges equal labels, so two occurrences of the letter <code>e</code> would be drawn as one row. Labels are prefixed with the position (<code>0·e</code>, <code>4·e</code>) and invisible characters are replaced by visible stand-ins (space becomes <code>␣</code>).</li>
+</ol>
+<p>For several heads, <strong>small multiples</strong> (Tufte, 1983) place the patterns side by side on identical colour scales, which makes the difference between heads the visible variable.</p>
+<div class="admonition note">
+<p class="admonition-title">What the default model shows</p>
+<p>At initialisation the attention is nearly uniform: the mean entropy of the weights over the first 48 positions is about 3.25 nats and the largest weight about 0.045. After the 300-step reference run, the first layer has moved to an entropy of about 2.76 nats and a largest weight of about 0.16, while the second layer is still almost uniform. The heat maps therefore show a weak but real change in layer 0 and nothing in layer 1, which agrees with the finding that the short run learns only character statistics.</p>
+</div>
+<h2 id="visualising-layer-normalisation">Visualising layer normalisation</h2>
+<p>Two views are used. An <strong>overlaid histogram</strong> of all activations before and after normalisation shows the change of scale. A <strong>per-token bar chart</strong> of the mean and the standard deviation shows the mechanism itself: after normalisation every token vector has mean about 0 and standard deviation about 1 (before applying the learnable gain and bias), whatever its original scale.</p>
+<h2 id="visualising-training">Visualising training</h2>
+<p>Training produces a <strong>time series</strong> per metric. Four points of method:</p>
+<h3 id="smoothing">Smoothing</h3>
+<p>Per-step losses are noisy because every step uses a different random batch. A trailing moving average of window <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>w</mi></mrow></math>,</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mover><mrow><mi>&#x02113;</mi></mrow><mo stretchy="true">&#x000AF;</mo></mover><mi>t</mi></msub><mo>&#x0003D;</mo><mfrac><mrow><mn>1</mn></mrow><mrow><mo>min</mo><mo stretchy="false">&#x00028;</mo><mi>w</mi><mo>&#x0002C;</mo><mi>t</mi><mo stretchy="false">&#x00029;</mo></mrow></mfrac><munderover><mo>&#x02211;</mo><mrow><mi>i</mi><mo>&#x0003D;</mo><mo>max</mo><mo stretchy="false">&#x00028;</mo><mn>1</mn><mo>&#x0002C;</mo><mi>t</mi><mo>&#x02212;</mo><mi>w</mi><mo>&#x0002B;</mo><mn>1</mn><mo stretchy="false">&#x00029;</mo></mrow><mrow><mi>t</mi></mrow></munderover><msub><mi>&#x02113;</mi><mi>i</mi></msub><mo>&#x0002C;</mo></mrow></math></div>
+<p>reduces the variance of the estimate by about a factor <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>w</mi></mrow></math> for independent noise, at the price of a delay of about <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">&#x00028;</mo><mi>w</mi><mo>&#x02212;</mo><mn>1</mn><mo stretchy="false">&#x00029;</mo><mo>&#x0002F;</mo><mn>2</mn></mrow></math> steps. The raw series is kept visible at low opacity so smoothing never hides a spike. The first <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>w</mi><mo>&#x02212;</mo><mn>1</mn></mrow></math> points average over fewer samples instead of being dropped.</p>
+<h3 id="reference-line">Reference line</h3>
+<p>The loss of a model that guesses uniformly is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>ln</mi><mi>V</mi></mrow></math>, here <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>ln</mi><mn>51</mn><mo>&#x02248;</mo></mrow></math> 3.932. Drawing it as a dotted line answers the question every beginner asks, "is this loss good or bad?". The first loss of the reference run, 3.967, sits just above that line, and the training loss of the final step is 3.037.</p>
+<h3 id="missing-values">Missing values</h3>
+<p>Validation loss exists only at some steps. The series extraction skips entries that are missing, <code>None</code> or non-finite, so the validation curve is drawn through its own points instead of being broken by gaps.</p>
+<h3 id="logarithmic-axes">Logarithmic axes</h3>
+<p>A log axis is optional. It helps when a loss spans orders of magnitude, but for losses between 2 and 4 a linear axis is more honest, because equal vertical distances then mean equal absolute differences.</p>
+<figure class="chart" id="chart-loss"><figcaption><strong>Cross-entropy loss during the reference run.</strong> Training loss falls from 3.967 to 3.037 in 300 steps; validation loss ends at 3.086. The dotted line is the loss of a uniform guesser, ln(51).</figcaption><svg class="chart-svg" viewBox="0 0 720 340" role="img" aria-labelledby="chart-loss-t chart-loss-d" xmlns="http://www.w3.org/2000/svg"><title id="chart-loss-t">Cross-entropy loss during the reference run</title><desc id="chart-loss-d">Training loss falls from 3.967 to 3.037 in 300 steps; validation loss ends at 3.086. The dotted line is the loss of a uniform guesser, ln(51).</desc><rect class="plot-bg" x="64" y="18" width="632" height="270"/><line class="grid" x1="64" x2="696" y1="256.0" y2="256.0"/><text class="tick" x="56" y="260.0" text-anchor="end">3.00</text><line class="grid" x1="64" x2="696" y1="138.1" y2="138.1"/><text class="tick" x="56" y="142.1" text-anchor="end">3.50</text><line class="grid" x1="167.6" x2="167.6" y1="18" y2="288"/><text class="tick" x="167.6" y="306" text-anchor="middle">50</text><line class="grid" x1="273.3" x2="273.3" y1="18" y2="288"/><text class="tick" x="273.3" y="306" text-anchor="middle">100</text><line class="grid" x1="378.9" x2="378.9" y1="18" y2="288"/><text class="tick" x="378.9" y="306" text-anchor="middle">150</text><line class="grid" x1="484.6" x2="484.6" y1="18" y2="288"/><text class="tick" x="484.6" y="306" text-anchor="middle">200</text><line class="grid" x1="590.3" x2="590.3" y1="18" y2="288"/><text class="tick" x="590.3" y="306" text-anchor="middle">250</text><line class="grid" x1="696.0" x2="696.0" y1="18" y2="288"/><text class="tick" x="696.0" y="306" text-anchor="middle">300</text><line class="axis" x1="64" x2="696" y1="288" y2="288"/><line class="axis" x1="64" x2="64" y1="18" y2="288"/><text class="label" x="380" y="332" text-anchor="middle">step</text><text class="label" transform="translate(16 153) rotate(-90)" text-anchor="middle">loss (nats per token)</text><line class="ref" x1="64" x2="696" y1="36.3" y2="36.3"/><text class="tick" x="692" y="31.3" text-anchor="end">uniform guess ln(51) = 3.932</text><polyline class="line s0 thin" points="64.0,28.0 66.1,30.6 68.2,39.7 70.3,44.2 72.5,56.2 74.6,68.8 76.7,88.6 78.8,106.9 80.9,117.1 83.0,138.6 85.1,142.0 87.3,160.4 89.4,177.5 91.5,190.8 93.6,201.9 95.7,211.6 97.8,224.1 99.9,231.7 102.0,225.2 104.2,219.3 106.3,233.8 108.4,237.3 110.5,254.4 112.6,225.3 114.7,237.2 116.8,236.2 119.0,228.6 121.1,232.5 123.2,256.9 125.3,241.2 127.4,255.2 129.5,229.1 131.6,239.1 133.8,240.2 135.9,247.3 138.0,240.5 140.1,245.8 142.2,248.0 144.3,252.5 146.4,219.8 148.5,260.6 150.7,253.4 152.8,237.6 154.9,240.2 157.0,235.3 159.1,219.4 161.2,250.9 163.3,233.1 165.5,234.1 167.6,242.4 169.7,249.5 171.8,253.0 173.9,253.1 176.0,254.7 178.1,246.0 180.3,239.6 182.4,255.5 184.5,236.3 186.6,258.3 188.7,249.7 190.8,263.2 192.9,244.0 195.1,254.0 197.2,265.3 199.3,248.5 201.4,247.8 203.5,251.2 205.6,231.7 207.7,252.1 209.8,240.0 212.0,252.8 214.1,238.8 216.2,245.5 218.3,247.6 220.4,241.4 222.5,245.9 224.6,240.2 226.8,233.3 228.9,245.2 231.0,231.9 233.1,252.7 235.2,239.7 237.3,251.8 239.4,232.6 241.6,254.8 243.7,242.8 245.8,243.0 247.9,229.6 250.0,237.4 252.1,244.6 254.2,261.3 256.3,228.3 258.5,247.3 260.6,249.7 262.7,262.4 264.8,265.5 266.9,262.1 269.0,256.5 271.1,248.2 273.3,249.4 275.4,253.6 277.5,263.7 279.6,243.4 281.7,247.4 283.8,266.6 285.9,232.6 288.1,252.7 290.2,255.0 292.3,243.0 294.4,247.3 296.5,225.3 298.6,244.7 300.7,245.5 302.8,233.6 305.0,246.7 307.1,236.4 309.2,250.1 311.3,268.0 313.4,234.6 315.5,241.2 317.6,238.2 319.8,254.7 321.9,240.6 324.0,250.3 326.1,258.3 328.2,224.9 330.3,263.2 332.4,266.4 334.6,241.4 336.7,267.3 338.8,251.9 340.9,254.9 343.0,267.4 345.1,264.2 347.2,250.0 349.4,250.6 351.5,240.8 353.6,239.8 355.7,230.6 357.8,267.0 359.9,249.3 362.0,248.3 364.1,248.5 366.3,258.0 368.4,232.2 370.5,261.7 372.6,250.4 374.7,242.0 376.8,247.5 378.9,254.0 381.1,258.4 383.2,252.9 385.3,249.7 387.4,251.6 389.5,228.1 391.6,232.1 393.7,237.2 395.9,239.0 398.0,245.0 400.1,238.8 402.2,236.3 404.3,252.0 406.4,253.5 408.5,240.3 410.6,235.3 412.8,260.1 414.9,253.6 417.0,246.2 419.1,255.0 421.2,238.9 423.3,260.8 425.4,228.6 427.6,238.8 429.7,243.7 431.8,273.0 433.9,241.9 436.0,256.4 438.1,252.7 440.2,235.2 442.4,256.3 444.5,254.3 446.6,247.0 448.7,260.0 450.8,257.1 452.9,243.6 455.0,241.6 457.2,242.0 459.3,244.5 461.4,245.0 463.5,252.6 465.6,252.6 467.7,236.6 469.8,257.0 471.9,265.5 474.1,251.3 476.2,254.3 478.3,248.0 480.4,241.9 482.5,252.1 484.6,214.7 486.7,254.1 488.9,241.9 491.0,251.1 493.1,249.4 495.2,239.7 497.3,249.8 499.4,239.7 501.5,246.0 503.7,243.3 505.8,228.7 507.9,248.2 510.0,260.8 512.1,232.9 514.2,256.4 516.3,235.9 518.4,245.1 520.6,261.9 522.7,252.2 524.8,256.0 526.9,268.0 529.0,260.8 531.1,238.2 533.2,250.4 535.4,254.8 537.5,239.2 539.6,252.8 541.7,231.8 543.8,254.9 545.9,238.6 548.0,264.3 550.2,240.4 552.3,248.5 554.4,257.1 556.5,232.4 558.6,259.0 560.7,249.1 562.8,236.4 564.9,249.7 567.1,242.7 569.2,239.1 571.3,247.8 573.4,235.4 575.5,257.1 577.6,240.8 579.7,257.1 581.9,254.9 584.0,229.9 586.1,239.0 588.2,237.5 590.3,256.6 592.4,256.0 594.5,237.8 596.7,259.6 598.8,255.2 600.9,249.6 603.0,266.0 605.1,247.8 607.2,253.4 609.3,239.3 611.5,244.4 613.6,271.8 615.7,262.4 617.8,235.9 619.9,241.9 622.0,236.8 624.1,251.5 626.2,242.7 628.4,221.3 630.5,243.9 632.6,253.9 634.7,236.4 636.8,262.1 638.9,236.5 641.0,231.7 643.2,257.7 645.3,240.7 647.4,263.4 649.5,239.6 651.6,247.1 653.7,253.9 655.8,244.4 658.0,229.6 660.1,258.0 662.2,248.2 664.3,249.4 666.4,278.0 668.5,240.0 670.6,248.5 672.7,252.1 674.9,239.5 677.0,238.9 679.1,243.9 681.2,244.3 683.3,243.5 685.4,243.1 687.5,237.8 689.7,247.1 691.8,249.1 693.9,248.8 696.0,247.2"/><polyline class="line s1" points="64.0,28.0 66.1,29.3 68.2,32.8 70.3,35.6 72.5,39.8 74.6,44.6 76.7,50.9 78.8,57.9 80.9,64.5 83.0,71.9 85.1,78.2 87.3,85.1 89.4,92.2 91.5,99.2 93.6,106.1 95.7,118.3 97.8,131.2 99.9,144.0 102.0,156.1 104.2,167.0 106.3,178.0 108.4,187.9 110.5,197.7 112.6,204.9 114.7,211.5 116.8,217.8 119.0,222.3 121.1,226.0 123.2,230.4 125.3,233.0 127.4,235.9 129.5,236.3 131.6,236.8 133.8,237.8 135.9,239.6 138.0,240.1 140.1,240.6 142.2,240.2 144.3,242.0 146.4,240.9 148.5,242.5 150.7,244.1 152.8,244.5 154.9,243.4 157.0,243.0 159.1,240.6 161.2,242.0 163.3,241.6 165.5,241.2 167.6,240.9 169.7,241.5 171.8,242.0 173.9,242.3 176.0,242.5 178.1,244.2 180.3,242.8 182.4,243.0 184.5,242.9 186.6,244.1 188.7,245.0 190.8,248.0 192.9,247.5 195.1,248.9 197.2,251.0 199.3,251.4 201.4,251.3 203.5,251.2 205.6,249.7 207.7,249.5 209.8,249.2 212.0,250.0 214.1,248.9 216.2,249.5 218.3,248.8 220.4,248.3 222.5,247.1 224.6,246.9 226.8,245.5 228.9,244.1 231.0,243.0 233.1,243.4 235.2,242.6 237.3,243.9 239.4,242.6 241.6,243.6 243.7,242.9 245.8,243.2 247.9,242.2 250.0,241.5 252.1,241.7 254.2,242.7 256.3,241.9 258.5,242.9 260.6,243.2 262.7,245.2 264.8,246.0 266.9,247.5 269.0,247.9 271.1,248.9 273.3,248.5 275.4,249.3 277.5,250.6 279.6,251.6 281.7,252.2 283.8,253.7 285.9,251.8 288.1,253.4 290.2,253.9 292.3,253.5 294.4,252.5 296.5,249.8 298.6,248.6 300.7,247.9 302.8,246.9 305.0,246.7 307.1,245.6 309.2,244.7 311.3,246.3 313.4,245.5 315.5,243.8 317.6,244.2 319.8,244.3 321.9,243.3 324.0,243.8 326.1,244.5 328.2,244.5 330.3,245.8 332.4,247.1 334.6,247.7 336.7,249.0 338.8,250.1 340.9,250.4 343.0,250.4 345.1,252.3 347.2,252.9 349.4,253.7 351.5,252.8 353.6,252.8 355.7,251.4 357.8,252.0 359.9,253.6 362.0,252.6 364.1,251.5 366.3,252.6 368.4,250.2 370.5,250.9 372.6,250.6 374.7,248.9 376.8,247.8 378.9,248.0 381.1,248.6 383.2,249.4 385.3,250.0 387.4,251.4 389.5,248.8 391.6,247.7 393.7,246.9 395.9,246.3 398.0,245.5 400.1,245.9 402.2,244.2 404.3,244.3 406.4,245.1 408.5,244.6 410.6,243.4 412.8,243.5 414.9,243.5 417.0,243.3 419.1,243.5 421.2,244.2 423.3,246.1 425.4,245.6 427.6,245.5 429.7,245.5 431.8,247.7 433.9,248.1 436.0,248.4 438.1,248.3 440.2,248.0 442.4,249.4 444.5,249.0 446.6,248.6 448.7,249.5 450.8,249.6 452.9,250.0 455.0,248.7 457.2,249.6 459.3,250.0 461.4,250.0 463.5,248.7 465.6,249.4 467.7,248.1 469.8,248.4 471.9,250.4 474.1,250.0 476.2,250.0 478.3,250.1 480.4,248.9 482.5,248.6 484.6,246.6 486.7,247.5 488.9,247.5 491.0,247.9 493.1,248.2 495.2,247.3 497.3,247.2 499.4,247.4 501.5,246.6 503.7,245.1 505.8,243.6 507.9,243.2 510.0,244.1 512.1,243.5 514.2,243.8 516.3,245.2 518.4,244.6 520.6,245.9 522.7,246.0 524.8,246.4 526.9,248.3 529.0,249.0 531.1,248.9 533.2,249.2 535.4,250.0 537.5,250.7 539.6,251.0 541.7,249.1 543.8,250.5 545.9,249.4 548.0,251.3 550.2,250.9 552.3,250.0 554.4,250.4 556.5,248.8 558.6,248.2 560.7,247.4 562.8,247.3 564.9,247.3 567.1,246.5 569.2,246.4 571.3,246.1 573.4,246.4 575.5,246.5 577.6,246.7 579.7,246.2 581.9,247.1 584.0,245.9 586.1,244.7 588.2,245.0 590.3,244.9 592.4,245.3 594.5,245.4 596.7,246.1 598.8,246.9 600.9,247.6 603.0,248.8 605.1,249.7 607.2,249.4 609.3,249.3 611.5,248.5 613.6,249.6 615.7,251.8 617.8,251.6 619.9,251.9 622.0,250.5 624.1,250.2 626.2,250.6 628.4,248.0 630.5,247.3 632.6,247.5 634.7,245.6 636.8,246.5 638.9,245.4 641.0,244.9 643.2,245.8 645.3,243.7 647.4,243.8 649.5,244.0 651.6,244.4 653.7,245.5 655.8,245.0 658.0,244.2 660.1,246.6 662.2,246.9 664.3,246.6 666.4,249.4 668.5,247.9 670.6,248.7 672.7,250.0 674.9,248.8 677.0,248.7 679.1,247.4 681.2,247.7 683.3,247.5 685.4,246.8 687.5,246.3 689.7,247.5 691.8,246.9 693.9,246.9 696.0,246.8"/><polyline class="line s2" points="64.0,33.4 114.7,222.2 167.6,236.3 220.4,234.2 273.3,234.5 326.1,234.2 378.9,232.4 431.8,234.4 484.6,232.9 537.5,234.8 590.3,234.0 643.2,234.2 696.0,235.6"/><circle class="dot s2" cx="64.0" cy="33.4" r="3"/><circle class="dot s2" cx="114.7" cy="222.2" r="3"/><circle class="dot s2" cx="167.6" cy="236.3" r="3"/><circle class="dot s2" cx="220.4" cy="234.2" r="3"/><circle class="dot s2" cx="273.3" cy="234.5" r="3"/><circle class="dot s2" cx="326.1" cy="234.2" r="3"/><circle class="dot s2" cx="378.9" cy="232.4" r="3"/><circle class="dot s2" cx="431.8" cy="234.4" r="3"/><circle class="dot s2" cx="484.6" cy="232.9" r="3"/><circle class="dot s2" cx="537.5" cy="234.8" r="3"/><circle class="dot s2" cx="590.3" cy="234.0" r="3"/><circle class="dot s2" cx="643.2" cy="234.2" r="3"/><circle class="dot s2" cx="696.0" cy="235.6" r="3"/></svg><ul class="legend"><li><svg width="30" height="10" aria-hidden="true"><line class="line s0 thin" x1="0" x2="30" y1="5" y2="5"/></svg> train (raw)</li><li><svg width="30" height="10" aria-hidden="true"><line class="line s1" x1="0" x2="30" y1="5" y2="5"/></svg> train (average of 15)</li><li><svg width="30" height="10" aria-hidden="true"><line class="line s2" x1="0" x2="30" y1="5" y2="5"/></svg> validation</li><li><svg width="30" height="10" aria-hidden="true"><line class="ref" x1="0" x2="30" y1="5" y2="5"/></svg> uniform guess ln(51) = 3.932</li></ul><details class="data"><summary>Show the data behind this chart</summary><div class="scroll" tabindex="0"><div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table><caption>Cross-entropy loss during the reference run (sampled steps)</caption><thead><tr><th scope="col">step</th><th scope="col">train (raw)</th><th scope="col">train (average of 15)</th><th scope="col">validation</th></tr></thead><tbody><tr><th scope="row">1</th><td>3.967</td><td>3.967</td><td>3.944</td></tr><tr><th scope="row">25</th><td>3.080</td><td>3.189</td><td>3.143</td></tr><tr><th scope="row">49</th><td>3.093</td><td>3.062</td><td>-</td></tr><tr><th scope="row">73</th><td>3.045</td><td>3.027</td><td>-</td></tr><tr><th scope="row">97</th><td>2.974</td><td>3.036</td><td>-</td></tr><tr><th scope="row">121</th><td>3.075</td><td>3.050</td><td>-</td></tr><tr><th scope="row">145</th><td>3.101</td><td>3.024</td><td>-</td></tr><tr><th scope="row">169</th><td>3.004</td><td>3.053</td><td>-</td></tr><tr><th scope="row">193</th><td>2.996</td><td>3.032</td><td>-</td></tr><tr><th scope="row">217</th><td>2.975</td><td>3.043</td><td>-</td></tr><tr><th scope="row">241</th><td>3.035</td><td>3.042</td><td>-</td></tr><tr><th scope="row">265</th><td>3.081</td><td>3.023</td><td>-</td></tr><tr><th scope="row">289</th><td>3.016</td><td>3.025</td><td>-</td></tr><tr><th scope="row">300</th><td>3.037</td><td>3.039</td><td>3.086</td></tr></tbody></table></div></div></details></figure>
+<h2 id="visualising-the-data-flow">Visualising the data flow</h2>
+<p>The data-flow diagram is generated from the <em>configuration and tensor shapes only</em>, without running the model. Each box lists a stage, a one-line description and the tensor shape, for example <code>(1, 64, 64)</code> for the residual stream and <code>(1, 64, 51)</code> for the logits of the default model. Because it is derived from <code>GPTConfig</code>, the diagram cannot disagree with the model: change the number of layers or the width and the picture changes with it. A test builds a real model and checks that the shapes in the diagram equal the shapes of the actual forward pass.</p>
+<p>The <strong>parameter bar chart</strong> answers a different question: where do the 103,360 parameters live? For the default model, the feed-forward layers hold 66,176, attention 33,280, the token table 3,264 and the layer norms 640. The feed-forward networks hold about two thirds of the parameters, in line with the usual observation for transformers whose hidden width is four times the model width.</p>
+<h2 id="design-principles-used-throughout">Design principles used throughout</h2>
+<ol>
+<li><strong>No figure without a purpose and a key.</strong> Every figure answers one question and has a title that states it.</li>
+<li><strong>Empty is a state, not an error.</strong> When there is no data (before training starts, no tokens, wrong matrix rank) a blank figure carries a short message. Pages never fail because a plot has nothing to draw.</li>
+<li><strong>Pure functions.</strong> Builders take tensors or lists and return a Plotly figure. They import no Streamlit and no model code beyond the configuration dataclass, so they can be tested without a browser.</li>
+<li><strong>Honest scales.</strong> Fixed ranges for probabilities and similarities, a zero-centred scale for signed data, and the explained variance in every projection title.</li>
+<li><strong>Accessible encodings.</strong> Colour is never the only carrier of meaning: matrices have labelled axes and a colour bar, and tokens that are whitespace are spelled out.</li>
+</ol>
+<h2 id="limitations">Limitations</h2>
+<ol>
+<li><strong>Linear projection only.</strong> PCA preserves global variance, not neighbourhoods. Non-linear methods such as t-SNE (van der Maaten and Hinton, 2008) or UMAP preserve local structure better but have hyper-parameters that change the picture, which is a poor fit for a teaching tool whose figures should be reproducible.</li>
+<li><strong>Attention is not explanation.</strong> See Jain and Wallace (2019) and the reply by Wiegreffe and Pinter (2019).</li>
+<li><strong>Small data.</strong> With 51 tokens, all point labels fit on a scatter plot. A realistic vocabulary of tens of thousands of tokens would need sampling or interactive filtering.</li>
+<li><strong>Plotly in the browser.</strong> Interactivity (hover, zoom) depends on the browser; the explanation pages in this documentation use static SVG instead.</li>
+</ol>
+<h2 id="where-to-go-next">Where to go next</h2>
+<p>The figures are placed on the learning pages by the <a href="09_streamlit_app_explanation.html">Streamlit application</a>. The text and formulas that sit beside them come from the <a href="08_educational_content_explanation.html">educational content layer</a>. The <a href="07_visualization_implementation_guide.html">implementation guide</a> lists every builder, its arguments and its test.</p>
+<h2 id="references">References</h2>
+<ol>
+<li>Cleveland, W. S., McGill, R. (1984). <em>Graphical perception: theory, experimentation, and application to the development of graphical methods.</em> Journal of the American Statistical Association 79(387).</li>
+<li>Tufte, E. R. (1983). <em>The Visual Display of Quantitative Information.</em> Graphics Press.</li>
+<li>Pearson, K. (1901). <em>On lines and planes of closest fit to systems of points in space.</em> Philosophical Magazine 2(11).</li>
+<li>Hotelling, H. (1933). <em>Analysis of a complex of statistical variables into principal components.</em> Journal of Educational Psychology 24.</li>
+<li>Bahdanau, D., Cho, K., Bengio, Y. (2015). <em>Neural Machine Translation by Jointly Learning to Align and Translate.</em> ICLR.</li>
+<li>Mikolov, T., Sutskever, I., Chen, K., Corrado, G., Dean, J. (2013). <em>Distributed Representations of Words and Phrases and their Compositionality.</em> NeurIPS.</li>
+<li>Jain, S., Wallace, B. C. (2019). <em>Attention is not Explanation.</em> NAACL.</li>
+<li>Wiegreffe, S., Pinter, Y. (2019). <em>Attention is not not Explanation.</em> EMNLP.</li>
+<li>van der Maaten, L., Hinton, G. (2008). <em>Visualizing Data using t-SNE.</em> Journal of Machine Learning Research 9.</li>
+</ol>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>

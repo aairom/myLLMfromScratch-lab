@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>9. The Streamlit application: interaction, state and architecture – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 9 of 10 · Scientific explanation</p>
+<h1>9. The Streamlit application: interaction, state and architecture</h1>
+<p class="lede">Navigation, shared session state, ten pages, live training lab and inference page.</p>
+<ul class="badges" aria-label="Key facts"><li>1,850 words</li><li>12 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="09_streamlit_app_explanation.html" aria-current="page">Explanation</a><a href="09_streamlit_app_implementation_guide.html">Implementation guide</a><a href="08_educational_content_explanation.html">← 8. Educational content layer</a><a href="10_scripts_docs_compliance_explanation.html">10. Scripts, documentation and compliance →</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#abstract">Abstract</a></li><li><a href="#the-streamlit-execution-model">The Streamlit execution model</a></li><li><a href="#state-design">State design</a><ul><li><a href="#one-dictionary-a-small-set-of-keys">One dictionary, a small set of keys</a></li><li><a href="#immutable-settings-explicit-transitions">Immutable settings, explicit transitions</a></li><li><a href="#why-the-logic-does-not-import-streamlit">Why the logic does not import Streamlit</a></li></ul></li><li><a href="#layers-and-separation-of-concerns">Layers and separation of concerns</a></li><li><a href="#navigation-and-information-architecture">Navigation and information architecture</a></li><li><a href="#interaction-design-principles-applied">Interaction design principles applied</a></li><li><a href="#streaming-a-long-computation">Streaming a long computation</a><ul><li><a href="#what-a-resume-does-and-does-not-do">What a resume does and does not do</a></li></ul></li><li><a href="#testing-a-user-interface">Testing a user interface</a></li><li><a href="#reproducibility-in-an-interactive-tool">Reproducibility in an interactive tool</a></li><li><a href="#limitations">Limitations</a></li><li><a href="#where-to-go-next">Where to go next</a></li><li><a href="#references">References</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_explanation.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_explanation.html">Tokenization</a></li><li><a href="03_embeddings_positional_explanation.html">Embeddings and positional encoding</a></li><li><a href="04_attention_layers_explanation.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_explanation.html">Full transformer (GPT) and generation</a></li><li><a href="06_training_pipeline_explanation.html">Training pipeline</a></li><li><a href="07_visualization_explanation.html">Visualization layer</a></li><li><a href="08_educational_content_explanation.html">Educational content layer</a></li><li aria-current="step"><a href="09_streamlit_app_explanation.html">Streamlit application and learning pages</a></li><li><a href="10_scripts_docs_compliance_explanation.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="abstract">Abstract</h2>
+<p>The previous sub-tasks produce a model, a training loop, figures and lessons. This sub-task puts them in front of a learner. The scientific questions here belong to human-computer interaction and software architecture rather than to machine learning: how should an interface for <em>exploring</em> a model behave, where should state live, how can long computations be shown while they run, and how can a user interface be tested without a person clicking through it? The document explains the execution model of Streamlit, the design of the shared session state, the separation of logic from presentation, the way live training is streamed, and the usability principles behind the ten pages.</p>
+<h2 id="the-streamlit-execution-model">The Streamlit execution model</h2>
+<p>Most graphical toolkits are <strong>event driven</strong>: a callback runs when a button is clicked and mutates widgets. Streamlit uses a different model, closer to a <strong>spreadsheet</strong> or to <strong>functional reactive programming</strong> (Elliott and Hudak, 1997). Whenever the user changes a widget, the script is executed again <strong>from top to bottom</strong>, and every widget call returns its current value. The page is the output of the script for the present input.</p>
+<p>This has three consequences that shaped the code.</p>
+<ol>
+<li><strong>Scripts are plain.</strong> A page is a sequence of "read widget, compute, draw" steps with no callback wiring, which is easy to read for a learner.</li>
+<li><strong>Nothing survives a rerun unless it is stored.</strong> Local variables are recreated on every run. Anything that must persist, such as the model, the optimiser and the training history, has to be placed in <code>st.session_state</code>, a per-browser-session dictionary.</li>
+<li><strong>Expensive work must be cached or avoided.</strong> Retraining a tokenizer on every slider move would make the interface unusable. The application therefore memoises tokenizer training by a key of <code>(kind, corpus text, merges)</code> and rebuilds the model only when the user presses <strong>Apply</strong>.</li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Sessions are isolated</p>
+<p>Each browser tab has its own session state, so two learners opening the same server do not share models. The state defaults are deep-copied for every session so that a mutable default such as the history list is never shared.</p>
+</div>
+<h2 id="state-design">State design</h2>
+<h3 id="one-dictionary-a-small-set-of-keys">One dictionary, a small set of keys</h3>
+<p>The state holds only what must outlive a rerun:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>settings</code></td>
+<td>the immutable <code>ModelSettings</code> chosen in the sidebar</td>
+</tr>
+<tr>
+<td><code>model</code>, <code>tokenizer</code></td>
+<td>the object every page uses</td>
+</tr>
+<tr>
+<td><code>history</code></td>
+<td>the list of per-step metric dictionaries</td>
+</tr>
+<tr>
+<td><code>train_cfg</code></td>
+<td>the training configuration of the last run</td>
+</tr>
+<tr>
+<td><code>optimizer</code></td>
+<td>the live optimiser, kept so a run can be resumed in the same session</td>
+</tr>
+<tr>
+<td><code>model_source</code></td>
+<td><code>none</code>, <code>fresh</code>, <code>trained</code> or <code>checkpoint</code>, shown in the sidebar so the learner always knows which weights they are looking at</td>
+</tr>
+<tr>
+<td><code>stop_requested</code>, <code>training</code></td>
+<td>flags for cooperative cancellation and for warning the user</td>
+</tr>
+<tr>
+<td><code>last_error</code></td>
+<td>the last readable error message</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="immutable-settings-explicit-transitions">Immutable settings, explicit transitions</h3>
+<p>The sidebar produces a <strong>frozen dataclass</strong>. Changing the model means constructing a new settings object, validating it, and replacing the model, tokenizer, history and optimiser <strong>together</strong> in one <code>update</code> call. There is therefore no moment in which a new model exists beside the old training history, which would produce charts that belong to a different network. If validation fails, the old model is kept and the reason is shown. This is the standard way to keep a state machine consistent: <em>make illegal states unrepresentable</em> and perform transitions atomically.</p>
+<p>The states of <code>model_source</code> form a small machine:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>From</th>
+<th>Event</th>
+<th>To</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>none</td>
+<td>first page load</td>
+<td>fresh</td>
+</tr>
+<tr>
+<td>fresh, trained, checkpoint</td>
+<td>Apply in the sidebar</td>
+<td>fresh</td>
+</tr>
+<tr>
+<td>fresh, checkpoint</td>
+<td>a training run produces at least one step</td>
+<td>trained</td>
+</tr>
+<tr>
+<td>any</td>
+<td>load a checkpoint</td>
+<td>checkpoint</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="why-the-logic-does-not-import-streamlit">Why the logic does not import Streamlit</h3>
+<p>The state module treats <code>state</code> as any mutable mapping. In the application it is <code>st.session_state</code>; in tests it is an ordinary <code>dict</code>. This is an application of the <strong>dependency inversion principle</strong> (Martin, 2003): high-level logic depends on an abstraction (a mapping), not on the framework. The payoff is that the whole lifecycle can be unit tested in milliseconds without a browser.</p>
+<h2 id="layers-and-separation-of-concerns">Layers and separation of concerns</h2>
+<p>The application follows a <em>presentation, application logic, domain</em> layering, with the dependencies pointing downwards only:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Packages</th>
+<th>Knows about Streamlit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Presentation</td>
+<td><code>app.py</code>, <code>pages/</code>, <code>ui/sidebar.py</code>, <code>ui/components.py</code></td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Application logic</td>
+<td><code>ui/state.py</code>, <code>ui/lab.py</code>, <code>ui/demo.py</code></td>
+<td>no</td>
+</tr>
+<tr>
+<td>Content and drawing</td>
+<td><code>edu/</code>, <code>viz/</code></td>
+<td>no</td>
+</tr>
+<tr>
+<td>Domain</td>
+<td><code>llm/</code>, <code>training/</code>, <code>config.py</code></td>
+<td>no</td>
+</tr>
+</tbody>
+</table></div>
+<p>A page is intentionally thin: it reads widgets, calls a helper from the logic layer, and passes the result to a figure builder. The helpers in <code>ui/demo.py</code> compute what a page needs (for example "run one untrained attention layer on this text") and return plain dictionaries and tensors. This is the <em>humble object</em> pattern (Meszaros, 2007): the part that is hard to test, the framework glue, is made as small as possible.</p>
+<h2 id="navigation-and-information-architecture">Navigation and information architecture</h2>
+<p>Ten pages are registered in one table and presented in the order in which the model is built: Home, tokenization, embeddings, positional encoding, attention, multi-head attention, LayerNorm and feed-forward, the full transformer, the training lab and inference. The order is the order of the data flow, so the navigation itself is a summary of the architecture.</p>
+<p>Each learning page has the same skeleton, which follows the <em>predictable structure</em> heuristic of Nielsen (1994):</p>
+<ol>
+<li>a title and a one-line summary;</li>
+<li>the Explain, Math and Code tabs (sub-task 8);</li>
+<li>a divider and an interactive section with widgets;</li>
+<li>figures that respond to the widgets (sub-task 7).</li>
+</ol>
+<p>The <strong>sidebar</strong> is shared by all pages and holds the model configuration. This follows the principle of <em>visibility of system status</em>: the number of parameters, the vocabulary size, the device and whether the weights are untrained, trained or loaded are always visible.</p>
+<h2 id="interaction-design-principles-applied">Interaction design principles applied</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>How it appears in the application</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Immediate feedback</td>
+<td>changing a slider redraws the figure in the same run</td>
+</tr>
+<tr>
+<td>Error prevention</td>
+<td>a form validates before applying; the training page disables Start when the window is longer than the context</td>
+</tr>
+<tr>
+<td>Helpful error messages</td>
+<td>messages say what is wrong and what to do (for example when <code>d_model</code> is not divisible by the head count they explain why each head needs <code>d_model / heads</code> dimensions)</td>
+</tr>
+<tr>
+<td>User control</td>
+<td>a Stop button, a Resume button, and nothing that destroys work without saying so (applying settings tells the user that earlier training was discarded)</td>
+</tr>
+<tr>
+<td>Recognition rather than recall</td>
+<td>the settings show their current values and a short help text</td>
+</tr>
+<tr>
+<td>Graceful empty states</td>
+<td>before data exists a consistent message tells the learner what to press</td>
+</tr>
+</tbody>
+</table></div>
+<div class="admonition note">
+<p class="admonition-title">Form versus live widgets</p>
+<p>The architecture settings are in a <strong>form</strong>: nothing changes until the learner presses a button, because re-initialising a model is expensive and destroys training progress. The widgets on the learning pages are not in a form, because a change there only recomputes a small demonstration.</p>
+</div>
+<h2 id="streaming-a-long-computation">Streaming a long computation</h2>
+<p>Training takes seconds to minutes and the learner should <em>see</em> it happen. The training loop is a <strong>generator</strong> that yields one metrics dictionary per step. The page iterates over it, and every few steps clears and redraws the progress area. This is a form of <strong>cooperative multitasking</strong>: the generator produces a value, the consumer decides what to do with it, and control returns.</p>
+<p>Three details matter.</p>
+<ol>
+<li><strong>Cooperative cancellation.</strong> The Stop button cannot interrupt a Python loop from outside. It sets a flag in the state, and the generator checks the flag before each step. This is the safe approach because the model is never left half-updated.</li>
+<li><strong>Redraw cadence.</strong> Redrawing a chart on every step would cost more than the step itself. The page redraws every <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>N</mi></mrow></math> steps (default 5) and once at the end.</li>
+<li><strong>Unique widget keys.</strong> Streamlit requires a unique key for each chart. Because the same chart is redrawn many times in one script run, the page appends a frame counter to its key. Without it Streamlit raises a duplicate-element error on the second redraw.</li>
+</ol>
+<h3 id="what-a-resume-does-and-does-not-do">What a resume does and does not do</h3>
+<p>Resuming reuses the optimiser object that is alive in the session, which keeps Adam's moment estimates. It does not continue the learning-rate schedule: the schedule is indexed from zero again, so the rate returns to the warm-up value. The extra steps are added to the history, so a 30-step run followed by a resume of 30 steps has 60 recorded steps. The optimiser state is written into checkpoints but is not restored from them, so after loading a file the Resume button is unavailable. The interface is honest about this by enabling Resume only when an optimiser exists in the session.</p>
+<h2 id="testing-a-user-interface">Testing a user interface</h2>
+<p>A common objection to interface code is that it can only be tested by hand. Streamlit provides a headless runner, <strong><code>AppTest</code></strong>, which executes a script with a simulated session and exposes its elements (sliders, buttons, charts, errors, session state). The test suite uses it at three levels:</p>
+<ol>
+<li><strong>Pure logic</strong> (settings validation, state transitions, data preparation, the demos) with ordinary unit tests on plain dictionaries.</li>
+<li><strong>Page tests</strong>: each of the ten pages is executed, its widgets are driven, and the test asserts that no exception or error banner appears and that the expected state results (for example that training reduces the loss and fills the history).</li>
+<li><strong>Whole-application tests</strong>: <code>app.py</code> runs with the sidebar, an Apply click rebuilds the model, and invalid settings leave the old model untouched.</li>
+</ol>
+<p>Two fixtures protect the user's files: the output and input folders are redirected to a temporary directory for every test, so tests never write into <code>output/</code> and never read private files from <code>input/</code> into the corpus.</p>
+<h2 id="reproducibility-in-an-interactive-tool">Reproducibility in an interactive tool</h2>
+<p>The seed in the settings controls the initial weights, the batch order and the sampling. The same settings therefore give the same loss curve, which lets a learner compare two hyper-parameter choices fairly, and lets this documentation quote measured numbers. On a different device the floating-point sums can differ in the last bits; for the reference run the losses were identical on the CPU and on Apple's MPS backend to the digits reported.</p>
+<h2 id="limitations">Limitations</h2>
+<ol>
+<li><strong>Single user, local.</strong> The application has no authentication and no concurrency control. It binds to <code>localhost</code> by default and is meant for one learner.</li>
+<li><strong>Training blocks the session.</strong> The run happens inside the script execution; the page cannot be used for something else until it finishes or is stopped.</li>
+<li><strong>No persistence of the session.</strong> Closing the tab loses the in-memory model unless a checkpoint was saved.</li>
+<li><strong>Scale.</strong> The settings limits (for example 12 layers, 512 wide) keep every page interactive; larger models would call for background workers.</li>
+</ol>
+<h2 id="where-to-go-next">Where to go next</h2>
+<p>The scripts that start and stop the application, and the documents and checks around it, are covered in the <a href="10_scripts_docs_compliance_explanation.html">last sub-task</a>. The <a href="09_streamlit_app_implementation_guide.html">implementation guide</a> lists the page registry, the state keys, the settings fields and the tests.</p>
+<h2 id="references">References</h2>
+<ol>
+<li>Elliott, C., Hudak, P. (1997). <em>Functional Reactive Animation.</em> ICFP.</li>
+<li>Martin, R. C. (2003). <em>Agile Software Development: Principles, Patterns, and Practices.</em> Prentice Hall.</li>
+<li>Meszaros, G. (2007). <em>xUnit Test Patterns: Refactoring Test Code.</em> Addison-Wesley.</li>
+<li>Nielsen, J. (1994). <em>10 Usability Heuristics for User Interface Design.</em> Nielsen Norman Group.</li>
+<li>Norman, D. A. (2013). <em>The Design of Everyday Things</em> (revised ed.). Basic Books.</li>
+<li>Streamlit documentation: <em>App execution model</em> and <em>Session State</em>.</li>
+</ol>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>

@@ -94,6 +94,21 @@ scripts/stop.sh             # graceful shutdown
 More detail: [Docs/Quickstart.md](Docs/Quickstart.md) and
 [Docs/Architecture.md](Docs/Architecture.md).
 
+## Documentation of the ten sub-tasks
+
+Every sub-task has a scientific explanation (Markdown and standalone HTML) and
+an implementation guide (standalone HTML), all in `Docs/subtasks/`. Open
+[Docs/subtasks/index.html](Docs/subtasks/index.html) in a browser (no server,
+no network needed). Rebuild after editing a source with:
+
+```bash
+scripts/build-docs.sh            # all pages; add --only 6 for one sub-task
+```
+
+The generator is the `docsgen/` package (Markdown, latex2mathml and Pygments).
+Every number in the pages is read from the running code or the recorded
+reference run, and every page is validated during the build.
+
 ## Project layout
 
 | Folder | Purpose |
@@ -106,7 +121,9 @@ More detail: [Docs/Quickstart.md](Docs/Quickstart.md) and
 | `pages/` | One file per lesson page (`page_<name>.py`) |
 | `data/` | Bundled demo corpus |
 | `input/`, `output/` | Optional extra training text; timestamped results |
-| `scripts/` | `start.sh`, `stop.sh`, `cleanup.sh` |
+| `scripts/` | `start.sh`, `stop.sh`, `cleanup.sh`, `build-docs.sh` |
+| `docsgen/` | Generator that builds the HTML documentation from Markdown |
+| `Docs/subtasks/` | Explanations and implementation guides for the ten sub-tasks |
 | `tests/` | pytest suite, one test module per source module |
 
 ## Tests

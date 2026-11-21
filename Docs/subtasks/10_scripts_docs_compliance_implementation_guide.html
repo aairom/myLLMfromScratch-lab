@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>10. Implementation guide: scripts, documents and compliance – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 10 of 10 · Implementation guide</p>
+<h1>10. Implementation guide: scripts, documents and compliance</h1>
+<p class="lede">One-command lifecycle scripts, project documents, secret scan, test gate and audit.</p>
+<ul class="badges" aria-label="Key facts"><li>1,397 words</li><li>9 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="10_scripts_docs_compliance_explanation.html">Explanation</a><a href="10_scripts_docs_compliance_implementation_guide.html" aria-current="page">Implementation guide</a><a href="09_streamlit_app_implementation_guide.html">← 9. Streamlit application and learning pages</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#role-in-the-project">Role in the project</a></li><li><a href="#file-map">File map</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#lifecycle-scripts">Lifecycle scripts</a><ul><li><a href="#startsh">start.sh</a></li><li><a href="#stopsh">stop.sh</a></li><li><a href="#cleanupsh">cleanup.sh</a></li><li><a href="#build-docssh">build-docs.sh</a></li></ul></li><li><a href="#the-documentation-generator">The documentation generator</a><ul><li><a href="#build-flow">Build flow</a></li><li><a href="#the-markdown-dialect">The Markdown dialect</a></li><li><a href="#validation">Validation</a></li></ul></li><li><a href="#compliance-checks">Compliance checks</a><ul><li><a href="#test-layout">Test layout</a></li></ul></li><li><a href="#integration-points">Integration points</a></li><li><a href="#runtime-behaviour">Runtime behaviour</a></li><li><a href="#common-pitfalls">Common pitfalls</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_implementation_guide.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_implementation_guide.html">Tokenization</a></li><li><a href="03_embeddings_positional_implementation_guide.html">Embeddings and positional encoding</a></li><li><a href="04_attention_layers_implementation_guide.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_implementation_guide.html">Full transformer (GPT) and generation</a></li><li><a href="06_training_pipeline_implementation_guide.html">Training pipeline</a></li><li><a href="07_visualization_implementation_guide.html">Visualization layer</a></li><li><a href="08_educational_content_implementation_guide.html">Educational content layer</a></li><li><a href="09_streamlit_app_implementation_guide.html">Streamlit application and learning pages</a></li><li aria-current="step"><a href="10_scripts_docs_compliance_implementation_guide.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="role-in-the-project">Role in the project</h2>
+<p>This sub-task wraps the application in everything needed to run it, trust it and hand it over: five lifecycle scripts, an environment file template, three project documents, a generator for the sub-task documentation, and a set of project-wide checks. None of it changes how the model behaves; it changes how the project is operated.</p>
+<figure class="flow"><figcaption>Life of the project, from clone to delivery</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code> git clone
+    |
+ cp .env.example .env              optional: every variable has a default
+    |
+ uv venv .venv &amp;&amp; uv pip install -r requirements.txt --python .venv/bin/python
+    |
+ scripts/start.sh  ---&gt; .run/app.pid, .run/app.log, prints http://APP_HOST:APP_PORT
+    |                         |
+    |                  scripts/stop.sh   SIGTERM, wait, SIGKILL only if needed
+    |
+ edit code / text
+    |
+ scripts/build-docs.sh            Docs/subtasks/*.html  (validated)
+    |
+ bash .bob/skills/test-gate/scripts/run_tests.sh .        tests + &quot;every module has a test&quot;
+ bash .bob/skills/secure-config/scripts/scan_secrets.sh . --strict
+ bash .bob/skills/git-hygiene/scripts/ensure_gitignore.sh --check
+ bash .bob/skills/project-audit/scripts/audit.sh .
+    |
+ scripts/cleanup.sh               remove .venv, __pycache__, .run</code></pre></figure>
+<h2 id="file-map">File map</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scripts/start.sh</code></td>
+<td>launch detached, print the URL</td>
+</tr>
+<tr>
+<td><code>scripts/stop.sh</code></td>
+<td>graceful shutdown</td>
+</tr>
+<tr>
+<td><code>scripts/cleanup.sh</code></td>
+<td>remove virtual environment, caches and runtime state (<code>--dry-run</code> lists only)</td>
+</tr>
+<tr>
+<td><code>scripts/build-docs.sh</code></td>
+<td>rebuild <code>Docs/subtasks/*.html</code></td>
+</tr>
+<tr>
+<td><code>scripts/github-push.sh</code></td>
+<td>interactive helper that initialises a repository, sets or changes the remote, stages and pushes</td>
+</tr>
+<tr>
+<td><code>.env.example</code></td>
+<td>documented template of every environment variable</td>
+</tr>
+<tr>
+<td><code>config.py</code></td>
+<td>the only module that reads the environment</td>
+</tr>
+<tr>
+<td><code>README.md</code></td>
+<td>overview, architecture and workflow diagrams, quick start, layout, tests, data attribution, <strong>License (MIT)</strong></td>
+</tr>
+<tr>
+<td><code>Docs/Quickstart.md</code></td>
+<td>install, configure, run, tour, tests, troubleshooting</td>
+</tr>
+<tr>
+<td><code>Docs/Architecture.md</code></td>
+<td>layers, model, training loop and UI data flow as Mermaid diagrams, design decisions</td>
+</tr>
+<tr>
+<td><code>Docs/subtasks/</code></td>
+<td>this documentation: 10 explanations (<code>.md</code> and <code>.html</code>), 10 implementation guides (<code>.html</code>), <code>index.html</code>, and the sources under <code>guide_src/</code></td>
+</tr>
+<tr>
+<td><code>docsgen/</code></td>
+<td>the generator and validator behind <code>Docs/subtasks/</code></td>
+</tr>
+<tr>
+<td><code>.gitignore</code></td>
+<td>policy managed by the git-hygiene skill</td>
+</tr>
+<tr>
+<td><code>.bob/skills/*/scripts/</code></td>
+<td>the check scripts used before delivery</td>
+</tr>
+<tr>
+<td><code>pytest.ini</code>, <code>tests/</code></td>
+<td><code>testpaths = tests</code>, <code>pythonpath = .</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="configuration">Configuration</h2>
+<figure class="source"><figcaption>.env.example (16 lines)</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Bash code"><span></span><code><span class="c1"># Copy this file to .env and adjust. .env is git-ignored; this file is committed.</span>
+
+<span class="c1"># Port the Streamlit app listens on (never use 5000: reserved by AirDrop on macOS)</span>
+<span class="nv">APP_PORT</span><span class="o">=</span><span class="m">8601</span>
+<span class="c1"># Address the app binds to and prints in its URL (keep localhost: the app is local only)</span>
+<span class="nv">APP_HOST</span><span class="o">=</span>localhost
+<span class="c1"># Command used by scripts/start.sh (single quotes keep $APP_PORT and $APP_HOST unexpanded until launch)</span>
+<span class="nv">APP_START_CMD</span><span class="o">=</span><span class="s1">'.venv/bin/python -m streamlit run app.py --server.port $APP_PORT --server.address $APP_HOST --server.headless true --browser.gatherUsageStats false'</span>
+<span class="c1"># Compute device: auto | cpu | mps | cuda</span>
+<span class="nv">DEVICE</span><span class="o">=</span>auto
+<span class="c1"># Default random seed used by demos and training</span>
+<span class="nv">DEFAULT_SEED</span><span class="o">=</span><span class="m">42</span>
+<span class="c1"># Folder with optional .txt/.md training files (read recursively)</span>
+<span class="nv">INPUT_DIR</span><span class="o">=</span>input
+<span class="c1"># Folder for checkpoints and metrics (timestamped file names)</span>
+<span class="nv">OUTPUT_DIR</span><span class="o">=</span>output
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>config.py, lines 39-53: config.load_settings</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_settings</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Settings</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Read settings from the environment, validating each value."""</span>
+    <span class="n">port</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"APP_PORT"</span><span class="p">,</span> <span class="s2">"8601"</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">port</span> <span class="o">==</span> <span class="mi">5000</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Port 5000 is reserved by AirDrop on macOS; choose another APP_PORT."</span><span class="p">)</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"DEVICE"</span><span class="p">,</span> <span class="s2">"auto"</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">device</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VALID_DEVICES</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"DEVICE must be one of </span><span class="si">{</span><span class="n">VALID_DEVICES</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">device</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Settings</span><span class="p">(</span>
+        <span class="n">app_port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+        <span class="n">default_seed</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"DEFAULT_SEED"</span><span class="p">,</span> <span class="s2">"42"</span><span class="p">)),</span>
+        <span class="n">input_dir</span><span class="o">=</span><span class="n">_resolve_dir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"INPUT_DIR"</span><span class="p">,</span> <span class="s2">"input"</span><span class="p">)),</span>
+        <span class="n">output_dir</span><span class="o">=</span><span class="n">_resolve_dir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"OUTPUT_DIR"</span><span class="p">,</span> <span class="s2">"output"</span><span class="p">)),</span>
+    <span class="p">)</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>config.py, lines 56-77: config.resolve_device</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">resolve_device</span><span class="p">(</span><span class="n">requested</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"auto"</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Return a ``torch.device`` for the requested device name.</span>
+
+<span class="sd">    ``auto`` prefers CUDA, then Apple MPS, then CPU. An unavailable explicit</span>
+<span class="sd">    choice falls back to CPU so the app always runs.</span>
+<span class="sd">    """</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+    <span class="n">requested</span> <span class="o">=</span> <span class="n">requested</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">requested</span> <span class="o">==</span> <span class="s2">"auto"</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">"cuda"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">backends</span><span class="p">,</span> <span class="s2">"mps"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">mps</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">"mps"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">"cpu"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">requested</span> <span class="o">==</span> <span class="s2">"cuda"</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">"cpu"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">requested</span> <span class="o">==</span> <span class="s2">"mps"</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span>
+        <span class="nb">getattr</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">backends</span><span class="p">,</span> <span class="s2">"mps"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">mps</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span>
+    <span class="p">):</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">"cpu"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="n">requested</span><span class="p">)</span>
+</code></pre></div>
+</figure>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Validation</th>
+<th>Consumer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>APP_PORT</code></td>
+<td>8601</td>
+<td>integer; <strong>5000 is rejected</strong></td>
+<td><code>config.load_settings</code>, <code>start.sh</code></td>
+</tr>
+<tr>
+<td><code>APP_HOST</code></td>
+<td><code>localhost</code></td>
+<td>none</td>
+<td><code>start.sh</code> (bind address and printed URL)</td>
+</tr>
+<tr>
+<td><code>APP_START_CMD</code></td>
+<td><code>.venv/bin/python -m streamlit run app.py ...</code></td>
+<td>none</td>
+<td><code>start.sh</code></td>
+</tr>
+<tr>
+<td><code>DEVICE</code></td>
+<td><code>auto</code></td>
+<td>one of <code>auto</code>, <code>cpu</code>, <code>mps</code>, <code>cuda</code></td>
+<td><code>config.resolve_device</code></td>
+</tr>
+<tr>
+<td><code>DEFAULT_SEED</code></td>
+<td>42</td>
+<td>integer</td>
+<td><code>ui.state.default_settings</code></td>
+</tr>
+<tr>
+<td><code>INPUT_DIR</code></td>
+<td><code>input</code></td>
+<td>resolved against the project root when relative</td>
+<td><code>training.data</code></td>
+</tr>
+<tr>
+<td><code>OUTPUT_DIR</code></td>
+<td><code>output</code></td>
+<td>resolved against the project root when relative</td>
+<td><code>training.checkpoint</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>config.py</code> loads <code>.env</code> with <code>override=False</code>, so a variable already set in the shell wins over the file. Settings are returned as a frozen dataclass.</p>
+<div class="admonition note">
+<p class="admonition-title">Why <code>APP_START_CMD</code> is single-quoted</p>
+<p>The value contains <code>$APP_PORT</code> and <code>$APP_HOST</code>. Single quotes keep them unexpanded when the file is read, and <code>start.sh</code> expands them when it runs the command, after the final port and host are known.</p>
+</div>
+<h2 id="lifecycle-scripts">Lifecycle scripts</h2>
+<h3 id="startsh">start.sh</h3>
+<figure class="source"><figcaption>scripts/start.sh (34 lines)</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Bash code"><span></span><code><span class="ch">#!/usr/bin/env bash</span>
+<span class="c1"># Launch the application detached and print its URL.</span>
+<span class="c1"># Configuration comes from .env (see .env.example): APP_START_CMD, APP_HOST, APP_PORT.</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<span class="nv">ROOT</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span><span class="nb">cd</span><span class="w"> </span><span class="s2">"</span><span class="k">$(</span>dirname<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">BASH_SOURCE</span><span class="p">[0]</span><span class="si">}</span><span class="s2">"</span><span class="k">)</span><span class="s2">/.."</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">pwd</span><span class="k">)</span><span class="s2">"</span>
+<span class="nb">cd</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ROOT</span><span class="s2">"</span>
+
+<span class="c1"># Load .env without executing it.</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-f<span class="w"> </span>.env<span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nb">set</span><span class="w"> </span>-a<span class="p">;</span><span class="w"> </span>.<span class="w"> </span>./.env<span class="p">;</span><span class="w"> </span><span class="nb">set</span><span class="w"> </span>+a<span class="p">;</span><span class="w"> </span><span class="k">fi</span>
+
+<span class="c1"># Defaults let a fresh clone start with no .env; values in .env (see .env.example) override them.</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">APP_HOST</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">APP_HOST</span><span class="k">:-</span><span class="nv">localhost</span><span class="si">}</span><span class="s2">"</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">APP_PORT</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">APP_PORT</span><span class="k">:-</span><span class="nv">8601</span><span class="si">}</span><span class="s2">"</span>
+<span class="nv">APP_START_CMD</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">APP_START_CMD</span><span class="k">:-</span><span class="p">.venv/bin/python -m streamlit run app.py --server.port </span><span class="se">\$</span><span class="nv">APP_PORT</span><span class="p"> --server.address </span><span class="se">\$</span><span class="nv">APP_HOST</span><span class="p"> --server.headless true --browser.gatherUsageStats false</span><span class="si">}</span><span class="s2">"</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">"</span><span class="nv">$APP_PORT</span><span class="s2">"</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"5000"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">"</span><span class="k">$(</span>uname<span class="w"> </span>-s<span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Darwin"</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"ERROR: port 5000 is reserved for AirDrop on macOS; choose another APP_PORT"</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+
+<span class="nv">RUN_DIR</span><span class="o">=</span><span class="s2">"</span><span class="nv">$ROOT</span><span class="s2">/.run"</span><span class="p">;</span><span class="w"> </span><span class="nv">PID_FILE</span><span class="o">=</span><span class="s2">"</span><span class="nv">$RUN_DIR</span><span class="s2">/app.pid"</span><span class="p">;</span><span class="w"> </span><span class="nv">LOG_FILE</span><span class="o">=</span><span class="s2">"</span><span class="nv">$RUN_DIR</span><span class="s2">/app.log"</span>
+mkdir<span class="w"> </span>-p<span class="w"> </span><span class="s2">"</span><span class="nv">$RUN_DIR</span><span class="s2">"</span>
+
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-f<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">kill</span><span class="w"> </span>-0<span class="w"> </span><span class="s2">"</span><span class="k">$(</span>cat<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span><span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"Already running (pid </span><span class="k">$(</span>cat<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span><span class="k">)</span><span class="s2">): http://</span><span class="nv">$APP_HOST</span><span class="s2">:</span><span class="nv">$APP_PORT</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">0</span>
+<span class="k">fi</span>
+
+nohup<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s2">"</span><span class="nv">$APP_START_CMD</span><span class="s2">"</span><span class="w"> </span>&gt;<span class="s2">"</span><span class="nv">$LOG_FILE</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="nv">$!</span><span class="w"> </span>&gt;<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span>
+sleep<span class="w"> </span><span class="m">1</span>
+<span class="k">if</span><span class="w"> </span>!<span class="w"> </span><span class="nb">kill</span><span class="w"> </span>-0<span class="w"> </span><span class="s2">"</span><span class="k">$(</span>cat<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span><span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"ERROR: application exited immediately; see </span><span class="nv">$LOG_FILE</span><span class="s2">"</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span><span class="p">;</span><span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"Application started (pid </span><span class="k">$(</span>cat<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span><span class="k">)</span><span class="s2">)"</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"URL: http://</span><span class="nv">$APP_HOST</span><span class="s2">:</span><span class="nv">$APP_PORT</span><span class="s2">"</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"Logs: </span><span class="nv">$LOG_FILE</span><span class="s2">"</span>
+</code></pre></div>
+</figure>
+<figure class="flow"><figcaption>start.sh decisions</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>load .env (set -a; . ./.env; set +a)      sourced, so keep it free of commands
+APP_HOST, APP_PORT, APP_START_CMD         defaults if unset
+port 5000 on Darwin                       exit 1
+pid file exists and process alive         print URL, exit 0 (idempotent)
+nohup bash -c &quot;$APP_START_CMD&quot; &gt; .run/app.log &amp;
+write pid; sleep 1
+process died                              print log path, remove pid file, exit 1
+otherwise                                 print pid, URL, log path</code></pre></figure>
+<h3 id="stopsh">stop.sh</h3>
+<figure class="source"><figcaption>scripts/stop.sh (23 lines)</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Bash code"><span></span><code><span class="ch">#!/usr/bin/env bash</span>
+<span class="c1"># Gracefully stop the application started by start.sh (SIGTERM, then SIGKILL after a timeout).</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<span class="nv">ROOT</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span><span class="nb">cd</span><span class="w"> </span><span class="s2">"</span><span class="k">$(</span>dirname<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">BASH_SOURCE</span><span class="p">[0]</span><span class="si">}</span><span class="s2">"</span><span class="k">)</span><span class="s2">/.."</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">pwd</span><span class="k">)</span><span class="s2">"</span>
+<span class="nv">PID_FILE</span><span class="o">=</span><span class="s2">"</span><span class="nv">$ROOT</span><span class="s2">/.run/app.pid"</span>
+<span class="nv">TIMEOUT</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">STOP_TIMEOUT</span><span class="k">:-</span><span class="nv">15</span><span class="si">}</span><span class="s2">"</span>
+
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>!<span class="w"> </span>-f<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"Not running (no pid file)"</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">0</span><span class="p">;</span><span class="w"> </span><span class="k">fi</span>
+<span class="nv">PID</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span>cat<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span><span class="k">)</span><span class="s2">"</span>
+<span class="k">if</span><span class="w"> </span>!<span class="w"> </span><span class="nb">kill</span><span class="w"> </span>-0<span class="w"> </span><span class="s2">"</span><span class="nv">$PID</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="p">;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"Not running (stale pid </span><span class="nv">$PID</span><span class="s2">)"</span><span class="p">;</span><span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">0</span><span class="p">;</span><span class="w"> </span><span class="k">fi</span>
+
+<span class="c1"># Stop the whole process group when possible so child servers die too.</span>
+pkill<span class="w"> </span>-TERM<span class="w"> </span>-P<span class="w"> </span><span class="s2">"</span><span class="nv">$PID</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="nb">kill</span><span class="w"> </span>-TERM<span class="w"> </span><span class="s2">"</span><span class="nv">$PID</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="k">for</span><span class="w"> </span>_<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="k">$(</span>seq<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="s2">"</span><span class="nv">$TIMEOUT</span><span class="s2">"</span><span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="nb">kill</span><span class="w"> </span>-0<span class="w"> </span><span class="s2">"</span><span class="nv">$PID</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">{</span><span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"Application stopped"</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">0</span><span class="p">;</span><span class="w"> </span><span class="o">}</span>
+<span class="w">  </span>sleep<span class="w"> </span><span class="m">1</span>
+<span class="k">done</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"Graceful stop timed out after </span><span class="si">${</span><span class="nv">TIMEOUT</span><span class="si">}</span><span class="s2">s; forcing"</span>
+pkill<span class="w"> </span>-KILL<span class="w"> </span>-P<span class="w"> </span><span class="s2">"</span><span class="nv">$PID</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="nb">kill</span><span class="w"> </span>-KILL<span class="w"> </span><span class="s2">"</span><span class="nv">$PID</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+rm<span class="w"> </span>-f<span class="w"> </span><span class="s2">"</span><span class="nv">$PID_FILE</span><span class="s2">"</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"Application killed"</span>
+</code></pre></div>
+</figure>
+<p>The stop timeout is read from <code>STOP_TIMEOUT</code> (default 15 seconds). Children are signalled first with <code>pkill -P</code>, then the parent, so the Streamlit worker does not outlive the launcher.</p>
+<h3 id="cleanupsh">cleanup.sh</h3>
+<figure class="source"><figcaption>scripts/cleanup.sh (17 lines)</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Bash code"><span></span><code><span class="ch">#!/usr/bin/env bash</span>
+<span class="c1"># End-of-project cleanup: remove node_modules, .venv, __pycache__ and runtime state.</span>
+<span class="c1"># Usage: cleanup.sh [--dry-run]</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<span class="nv">ROOT</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span><span class="nb">cd</span><span class="w"> </span><span class="s2">"</span><span class="k">$(</span>dirname<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">BASH_SOURCE</span><span class="p">[0]</span><span class="si">}</span><span class="s2">"</span><span class="k">)</span><span class="s2">/.."</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">pwd</span><span class="k">)</span><span class="s2">"</span>
+<span class="nv">DRY</span><span class="o">=</span><span class="m">0</span><span class="p">;</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">1</span><span class="k">:-</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"--dry-run"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">DRY</span><span class="o">=</span><span class="m">1</span>
+
+<span class="c1"># Stop the app first if it is running.</span>
+<span class="o">[</span><span class="w"> </span>-x<span class="w"> </span><span class="s2">"</span><span class="nv">$ROOT</span><span class="s2">/scripts/stop.sh"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">"</span><span class="nv">$DRY</span><span class="s2">"</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ROOT</span><span class="s2">/scripts/stop.sh"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+
+<span class="nv">COUNT</span><span class="o">=</span><span class="m">0</span>
+<span class="k">while</span><span class="w"> </span><span class="nv">IFS</span><span class="o">=</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>p<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="nv">COUNT</span><span class="o">=</span><span class="k">$((</span><span class="nv">COUNT</span><span class="o">+</span><span class="m">1</span><span class="k">))</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">"</span><span class="nv">$DRY</span><span class="s2">"</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"would remove: </span><span class="nv">$p</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="k">else</span><span class="w"> </span>rm<span class="w"> </span>-rf<span class="w"> </span><span class="s2">"</span><span class="nv">$p</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"removed: </span><span class="nv">$p</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="k">fi</span>
+<span class="k">done</span><span class="w"> </span>&lt;<span class="w"> </span>&lt;<span class="o">(</span>find<span class="w"> </span><span class="s2">"</span><span class="nv">$ROOT</span><span class="s2">"</span><span class="w"> </span><span class="se">\(</span><span class="w"> </span>-name<span class="w"> </span>node_modules<span class="w"> </span>-o<span class="w"> </span>-name<span class="w"> </span>.venv<span class="w"> </span>-o<span class="w"> </span>-name<span class="w"> </span>__pycache__<span class="w"> </span>-o<span class="w"> </span>-name<span class="w"> </span>.run<span class="w"> </span><span class="se">\)</span><span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>-prune<span class="w"> </span>-not<span class="w"> </span>-path<span class="w"> </span><span class="s2">"</span><span class="nv">$ROOT</span><span class="s2">/.git/*"</span><span class="w"> </span>-print<span class="o">)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"Done (</span><span class="nv">$COUNT</span><span class="s2"> item(s), dry-run=</span><span class="nv">$DRY</span><span class="s2">)"</span>
+</code></pre></div>
+</figure>
+<p>It calls <code>stop.sh</code> first (unless <code>--dry-run</code>), then removes only the four named kinds of folders, never touching <code>.git</code>.</p>
+<h3 id="build-docssh">build-docs.sh</h3>
+<figure class="source"><figcaption>scripts/build-docs.sh (12 lines)</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Bash code"><span></span><code><span class="ch">#!/usr/bin/env bash</span>
+<span class="c1"># Rebuild the sub-task documentation (Docs/subtasks/*.html) from the Markdown sources.</span>
+<span class="c1"># Usage: scripts/build-docs.sh [--only N [N ...]]</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<span class="nb">cd</span><span class="w"> </span><span class="s2">"</span><span class="k">$(</span>dirname<span class="w"> </span><span class="s2">"</span><span class="nv">$0</span><span class="s2">"</span><span class="k">)</span><span class="s2">/.."</span>
+
+<span class="nv">PY</span><span class="o">=</span><span class="s2">".venv/bin/python"</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>!<span class="w"> </span>-x<span class="w"> </span><span class="s2">"</span><span class="nv">$PY</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"No .venv found. Create it first: uv venv &amp;&amp; uv pip install -r requirements.txt"</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span>
+<span class="w">  </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+<span class="nb">exec</span><span class="w"> </span><span class="s2">"</span><span class="nv">$PY</span><span class="s2">"</span><span class="w"> </span>-m<span class="w"> </span>docsgen.build<span class="w"> </span><span class="s2">"</span><span class="nv">$@</span><span class="s2">"</span>
+</code></pre></div>
+</figure>
+<p>Pass <code>--only 6 7</code> to rebuild some sub-tasks. A partial build skips the cross-page link check because the index links to all 20 pages.</p>
+<p>All five scripts must be executable (<code>chmod +x scripts/*.sh</code>); the audit checks this.</p>
+<h2 id="the-documentation-generator">The documentation generator</h2>
+<p><code>docsgen/</code> has no entry in the application. It is a build tool, and it imports the project only to read facts and source.</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>File</th>
+<th>Lines</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docsgen/catalog.py</code></td>
+<td>81</td>
+<td>the ten <code>SubTask</code> records and the file names of their deliverables</td>
+</tr>
+<tr>
+<td><code>docsgen/facts.py</code></td>
+<td>150</td>
+<td>computed values used by the fact directive: live (from the model and corpus) and recorded (from two JSON files of measured runs)</td>
+</tr>
+<tr>
+<td><code>docsgen/render.py</code></td>
+<td>305</td>
+<td>Markdown dialect to HTML: math to MathML, directives, flow figures, admonitions, table of contents</td>
+</tr>
+<tr>
+<td><code>docsgen/charts.py</code></td>
+<td>241</td>
+<td>inline SVG charts of the recorded reference run, each with a data table</td>
+</tr>
+<tr>
+<td><code>docsgen/theme.py</code></td>
+<td>209</td>
+<td>one embedded stylesheet with light and dark code themes</td>
+</tr>
+<tr>
+<td><code>docsgen/page.py</code></td>
+<td>117</td>
+<td>the page frame: header, sub-navigation, pipeline, table of contents, footer</td>
+</tr>
+<tr>
+<td><code>docsgen/validate.py</code></td>
+<td>149</td>
+<td>structural and accessibility checks on the HTML</td>
+</tr>
+<tr>
+<td><code>docsgen/build.py</code></td>
+<td>149</td>
+<td>builds the 20 pages and the index, then validates them</td>
+</tr>
+<tr>
+<td><code>docsgen/reference_run.json</code>, <code>long_runs.json</code></td>
+<td></td>
+<td>recorded training histories used for the charts and the quoted measurements</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="build-flow">Build flow</h3>
+<figure class="flow"><figcaption>python -m docsgen.build</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>catalog.SUBTASKS ──for each sub-task──┐
+   NN_slug_explanation.md             │  render(md)  ── expand fact directives  ── extract code fences and math (stash tokens)
+   guide_src/NN_slug_guide.md         │             ── Markdown to HTML   ── restore stashed parts, run directives
+                                      ▼
+                          page.build_page(meta, rendered)   one standalone HTML string
+                                      │
+        NN_slug_explanation.html      │
+        NN_slug_implementation_guide.html
+                                      ▼
+   index.html (from index_markdown)   validate.check_file(path, check_links=not partial)
+                                      │
+            problems? ──yes──▶ BuildError, exit 1        no ──▶ &quot;wrote Docs/subtasks/...&quot; for every file</code></pre></figure>
+<h3 id="the-markdown-dialect">The Markdown dialect</h3>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Syntax</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$...$</code> and <code>$$...$$</code></td>
+<td>inline and display MathML (via latex2mathml)</td>
+</tr>
+<tr>
+<td>fact directive: two opening braces, <code>fact:</code>, a name, two closing braces</td>
+<td>value from <code>docsgen.facts</code>; an unknown name is a build error</td>
+</tr>
+<tr>
+<td>source directive: <code>source:</code> and a dotted path inside double braces, alone on a line</td>
+<td>live source of a symbol, with a caption of file and line numbers</td>
+</tr>
+<tr>
+<td>file directive: <code>file:</code> and <code>path\|lang\|first-last</code> inside double braces</td>
+<td>excerpt of a repository file</td>
+</tr>
+<tr>
+<td>chart directive with the name <code>loss</code>, <code>lr</code> or <code>gradnorm</code></td>
+<td>inline SVG chart and a data table</td>
+</tr>
+<tr>
+<td>a fence starting with <code>flow</code></td>
+<td>captioned ASCII figure, keyboard focusable</td>
+</tr>
+<tr>
+<td>other fences</td>
+<td>highlighted with Pygments</td>
+</tr>
+<tr>
+<td><code>!!! note "Title"</code> followed by indented text</td>
+<td>admonition</td>
+</tr>
+<tr>
+<td><code>[text](NN_slug_kind.md)</code></td>
+<td>rewritten to <code>.html</code></td>
+</tr>
+</tbody>
+</table></div>
+<figure class="source"><figcaption>docsgen/render.py, lines 103-118: docsgen.render.source_figure</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">source_figure</span><span class="p">(</span><span class="n">dotted</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Excerpt of the live source of ``dotted`` with a file and line caption."""</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">edu</span><span class="w"> </span><span class="kn">import</span> <span class="n">snippets</span>  <span class="c1"># imported late: pulls in the whole project</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">snippets</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">dotted</span><span class="p">)</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="n">snippets</span><span class="o">.</span><span class="n">get_source</span><span class="p">(</span><span class="n">dotted</span><span class="p">)</span>
+        <span class="n">lines</span><span class="p">,</span> <span class="n">first</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getsourcelines</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="n">where</span> <span class="o">=</span> <span class="n">_relative</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">getsourcefile</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">))</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">snippets</span><span class="o">.</span><span class="n">SnippetError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">RenderError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">{{{{</span><span class="s2">source:</span><span class="si">{</span><span class="n">dotted</span><span class="si">}</span><span class="se">}}}}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+    <span class="n">caption</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">where</span><span class="si">}</span><span class="s2">, lines </span><span class="si">{</span><span class="n">first</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">first</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">dotted</span><span class="si">}</span><span class="s2">"</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s1">'&lt;figure class="source"&gt;&lt;figcaption&gt;</span><span class="si">{</span><span class="n">html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">caption</span><span class="p">)</span><span class="si">}</span><span class="s1">&lt;/figcaption&gt;'</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">highlight_code</span><span class="p">(</span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="s1">'python'</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;/figure&gt;"</span>
+    <span class="p">)</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>docsgen/render.py, lines 121-138: docsgen.render.file_figure</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">file_figure</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``path|lang|first-last`` -&gt; highlighted excerpt of a repository file."""</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">arg</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"|"</span><span class="p">)]</span>
+    <span class="n">rel</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">lang</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">else</span> <span class="n">Path</span><span class="p">(</span><span class="n">rel</span><span class="p">)</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">"."</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">"text"</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="p">(</span><span class="n">PROJECT_ROOT</span> <span class="o">/</span> <span class="n">rel</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">PROJECT_ROOT</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">path</span><span class="o">.</span><span class="n">parents</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="n">RenderError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">{{{{</span><span class="s2">file:</span><span class="si">{</span><span class="n">arg</span><span class="si">}</span><span class="se">}}}}</span><span class="s2">: not a file inside the project"</span><span class="p">)</span>
+    <span class="n">all_lines</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+    <span class="n">first</span><span class="p">,</span> <span class="n">last</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_lines</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">parts</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
+        <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="sa">r</span><span class="s2">"(\d+)-(\d+)"</span><span class="p">,</span> <span class="n">parts</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">match</span> <span class="ow">or</span> <span class="ow">not</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="nb">int</span><span class="p">(</span><span class="n">match</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="nb">int</span><span class="p">(</span><span class="n">match</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_lines</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">RenderError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">{{{{</span><span class="s2">file:</span><span class="si">{</span><span class="n">arg</span><span class="si">}</span><span class="se">}}}}</span><span class="s2">: bad line range </span><span class="si">{</span><span class="n">parts</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="si">!r}</span><span class="s2"> (file has </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">all_lines</span><span class="p">)</span><span class="si">}</span><span class="s2"> lines)"</span><span class="p">)</span>
+        <span class="n">first</span><span class="p">,</span> <span class="n">last</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">match</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">match</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">caption</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">rel</span><span class="si">}</span><span class="s2">, lines </span><span class="si">{</span><span class="n">first</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">last</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">last</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_lines</span><span class="p">))</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">rel</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">last</span><span class="si">}</span><span class="s2"> lines)"</span>
+    <span class="n">code</span> <span class="o">=</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">all_lines</span><span class="p">[</span><span class="n">first</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span><span class="n">last</span><span class="p">])</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s1">'&lt;figure class="source"&gt;&lt;figcaption&gt;</span><span class="si">{</span><span class="n">html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">caption</span><span class="p">)</span><span class="si">}</span><span class="s1">&lt;/figcaption&gt;</span><span class="si">{</span><span class="n">highlight_code</span><span class="p">(</span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">lang</span><span class="p">)</span><span class="si">}</span><span class="s1">&lt;/figure&gt;'</span>
+</code></pre></div>
+</figure>
+<p>A directive that fails (a path that does not resolve, a missing file, a bad line range, an unknown fact) raises <code>RenderError</code>, and the build stops with the message. A document therefore cannot silently show a stale or empty listing.</p>
+<h3 id="validation">Validation</h3>
+<figure class="source"><figcaption>docsgen/validate.py, lines 94-141: docsgen.validate.check_html</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">check_html</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return a list of problems (empty means the page passes)."""</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">_Collector</span><span class="p">()</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">feed</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">problems</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">errors</span><span class="p">)</span>
+    <span class="n">problems</span> <span class="o">+=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"&lt;</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2">&gt; never closed"</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">stack</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">text</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"&lt;!doctype html&gt;"</span><span class="p">):</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"missing &lt;!DOCTYPE html&gt;"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">lang</span> <span class="o">!=</span> <span class="s2">"en"</span><span class="p">:</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"html lang is </span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">lang</span><span class="si">!r}</span><span class="s2">, expected 'en'"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"empty &lt;title&gt;"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span><span class="o">.</span><span class="n">has_viewport</span><span class="p">:</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"missing viewport meta tag"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span><span class="o">.</span><span class="n">has_main</span><span class="p">:</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"missing &lt;main&gt; landmark"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span><span class="o">.</span><span class="n">has_skip</span><span class="p">:</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"missing skip link"</span><span class="p">)</span>
+    <span class="n">h1</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">headings</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">h1</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"expected exactly one &lt;h1&gt;, found </span><span class="si">{</span><span class="n">h1</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">before</span><span class="p">,</span> <span class="n">after</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">headings</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">headings</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+        <span class="k">if</span> <span class="n">after</span> <span class="o">&gt;</span> <span class="n">before</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"heading level jumps from h</span><span class="si">{</span><span class="n">before</span><span class="si">}</span><span class="s2"> to h</span><span class="si">{</span><span class="n">after</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">break</span>
+    <span class="k">for</span> <span class="n">ident</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">dup_ids</span><span class="p">):</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"duplicate id </span><span class="si">{</span><span class="n">ident</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">frag</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">fragments</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">frag</span> <span class="ow">and</span> <span class="n">frag</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">ids</span><span class="p">:</span>
+            <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"link to missing anchor #</span><span class="si">{</span><span class="n">frag</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">href</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">links</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">EXTERNAL</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">href</span><span class="p">):</span>
+            <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"external link </span><span class="si">{</span><span class="n">href</span><span class="si">!r}</span><span class="s2">; pages must be self-contained"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">has_title</span><span class="p">,</span> <span class="n">has_role</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">svg_names</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">has_title</span> <span class="ow">and</span> <span class="n">has_role</span><span class="p">):</span>
+            <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"an &lt;svg&gt; has no accessible name (needs role=img and &lt;title&gt;) and is not aria-hidden"</span><span class="p">)</span>
+            <span class="k">break</span>
+    <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">pre_without_label</span><span class="p">:</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">pre_without_label</span><span class="si">}</span><span class="s2"> &lt;pre&gt; block(s) without tabindex or aria-label"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">"&lt;script"</span> <span class="ow">in</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"&lt;script&gt; found"</span><span class="p">)</span>
+    <span class="n">prose</span> <span class="o">=</span> <span class="n">CODE_BLOCK</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">""</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>  <span class="c1"># displayed code may legitimately mention url( or braces</span>
+    <span class="k">if</span> <span class="s2">"@import"</span> <span class="ow">in</span> <span class="n">prose</span> <span class="ow">or</span> <span class="s2">"url("</span> <span class="ow">in</span> <span class="n">prose</span><span class="p">:</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"stylesheet references an external resource"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">PLACEHOLDER</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">prose</span><span class="p">)</span> <span class="ow">or</span> <span class="n">INTERNAL_TOKEN</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+        <span class="n">problems</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"unresolved placeholder ({{ }} or internal token) left in the page"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">problems</span>
+</code></pre></div>
+</figure>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>doctype, <code>lang="en"</code>, <code>&lt;title&gt;</code>, viewport meta</td>
+<td>basic page validity and screen-reader language</td>
+</tr>
+<tr>
+<td>one <code>&lt;main&gt;</code>, a skip link</td>
+<td>landmark and keyboard navigation</td>
+</tr>
+<tr>
+<td>exactly one <code>h1</code>, no skipped heading level</td>
+<td>logical outline</td>
+</tr>
+<tr>
+<td>unique ids, every <code>#anchor</code> exists</td>
+<td>working in-page links</td>
+</tr>
+<tr>
+<td>no <code>&lt;script&gt;</code>, no <code>url(</code>, no external <code>src</code> or <code>href</code> to assets</td>
+<td>standalone and offline</td>
+</tr>
+<tr>
+<td>every <code>&lt;svg&gt;</code> has <code>role="img"</code> and a <code>&lt;title&gt;</code></td>
+<td>text alternative</td>
+</tr>
+<tr>
+<td>every <code>&lt;pre&gt;</code> has <code>tabindex</code> or an <code>aria-label</code></td>
+<td>scrollable code reachable by keyboard</td>
+</tr>
+<tr>
+<td>no unreplaced <code>{{...}}</code> and no internal stash tokens</td>
+<td>rendering errors</td>
+</tr>
+<tr>
+<td>links to sibling <code>.html</code> files exist (full build)</td>
+<td>no dead cross-references</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="compliance-checks">Compliance checks</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Script</th>
+<th>Checks</th>
+<th>Exit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test-gate/scripts/run_tests.sh .</code></td>
+<td>runs pytest, then reports any Python module without a <code>test_&lt;module&gt;.py</code></td>
+<td>0 pass, 1 failures or untested code, 2 no tests found</td>
+</tr>
+<tr>
+<td><code>secure-config/scripts/scan_secrets.sh . --strict</code></td>
+<td>quoted literals assigned to <code>api_key</code>, <code>secret</code>, <code>token</code>, <code>password</code>; token shapes; private keys; e-mail addresses in non-Markdown files; hard-coded <code>http(s)://</code> URLs in strict mode; <code>.env.example</code> consistency. A line with the word <code>nosecret</code> is exempt</td>
+<td>0 clean, 1 findings</td>
+</tr>
+<tr>
+<td><code>git-hygiene/scripts/ensure_gitignore.sh --check</code></td>
+<td>every required ignore entry is present; without <code>--check</code> it adds the missing ones and creates <code>.gitkeep</code> files in <code>input/</code> and <code>output/</code></td>
+<td>0 complete, 1 missing</td>
+</tr>
+<tr>
+<td><code>project-audit/scripts/audit.sh .</code></td>
+<td>README present, a License section, Quickstart, Architecture, documents only in <code>Docs/</code> (the root may hold only README, AGENTS, CLAUDE and LICENSE), ignore policy, secret scan, executable scripts, container policy if a container file exists</td>
+<td>0 passed, 1 failed</td>
+</tr>
+</tbody>
+</table></div>
+<p>The audit does not run the tests; the test gate does.</p>
+<h3 id="test-layout">Test layout</h3>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Files</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Model</td>
+<td><code>test_tokenizer</code> 19, <code>test_embeddings</code> 9, <code>test_positional</code> 9, <code>test_attention</code> 16, <code>test_layers</code> 10, <code>test_transformer</code> 28</td>
+<td>91</td>
+</tr>
+<tr>
+<td>Training</td>
+<td><code>test_data</code> 11, <code>test_optimizers</code> 15, <code>test_schedulers</code> 9, <code>test_trainer</code> 18, <code>test_checkpoint</code> 9</td>
+<td>62</td>
+</tr>
+<tr>
+<td>Visualisation and content</td>
+<td><code>test_common</code> 4, <code>test_tokens</code> 4, <code>test_viz_embeddings</code> 6, <code>test_viz_attention</code> 4, <code>test_lessons</code> 54, <code>test_snippets</code> 10, <code>test_components</code> 7, <code>test_training</code> 8 (the figure builders of <code>viz/training.py</code>)</td>
+<td>97</td>
+</tr>
+<tr>
+<td>Application</td>
+<td><code>test_app</code> 8, <code>test_state</code> 25, <code>test_sidebar</code> 3, <code>test_lab</code> 19, <code>test_demo</code> 32, <code>test_config</code> 5, ten <code>test_page_*</code> files (60 in total)</td>
+<td>152</td>
+</tr>
+</tbody>
+</table></div>
+<p>The four groups add up to the 402 tests of the project before the documentation generator. The documentation generator has its own test files, <code>tests/test_catalog.py</code>, <code>test_theme.py</code>, <code>test_charts.py</code>, <code>test_facts.py</code>, <code>test_render.py</code>, <code>test_page.py</code>, <code>test_validate.py</code> and <code>test_build.py</code>, so that every module of <code>docsgen/</code> also has a test module. The exact per-file counts are printed by <code>pytest --collect-only -q</code>.</p>
+<h2 id="integration-points">Integration points</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Interaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scripts/start.sh</code></td>
+<td>reads <code>.env</code>; runs <code>APP_START_CMD</code>, which starts <code>app.py</code></td>
+</tr>
+<tr>
+<td><code>config.py</code></td>
+<td>the single reader of the environment for application code</td>
+</tr>
+<tr>
+<td><code>docsgen.facts</code></td>
+<td>imports the live model, tokenizer and training data to compute numbers</td>
+</tr>
+<tr>
+<td><code>docsgen.render</code></td>
+<td>reuses <code>edu.snippets</code> to read source</td>
+</tr>
+<tr>
+<td><code>.bob/skills/*</code></td>
+<td>the checks are separate scripts, called by hand or by a pipeline</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="runtime-behaviour">Runtime behaviour</h2>
+<ul>
+<li><code>start.sh</code> writes <code>.run/app.pid</code> and <code>.run/app.log</code>; <code>.run/</code> is ignored by git and removed by <code>cleanup.sh</code>.</li>
+<li>Running <code>start.sh</code> twice reports the existing process instead of starting another.</li>
+<li><code>stop.sh</code> on a stale pid file removes it and exits 0.</li>
+<li><code>build-docs.sh</code> needs the project virtual environment because it imports the model code; the global Python has no PyTorch.</li>
+<li><code>output/</code> should hold only <code>.gitkeep</code> when the project is delivered; the tests redirect their checkpoints to temporary folders.</li>
+</ul>
+<h2 id="common-pitfalls">Common pitfalls</h2>
+<ul>
+<li><strong>Port 5000.</strong> Refused on purpose.</li>
+<li><strong>A dollar sign in prose of a Markdown source.</strong> A single <code>$</code> can start a formula. Write amounts in words or inside code spans.</li>
+<li><strong>A new source module without a test module.</strong> The test gate fails with <code>UNTESTED</code>.</li>
+<li><strong>Editing generated <code>.html</code> by hand.</strong> The next build overwrites it; edit the Markdown source instead.</li>
+<li><strong>A document placed in the project root.</strong> The audit allows only the four named files there.</li>
+</ul>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>

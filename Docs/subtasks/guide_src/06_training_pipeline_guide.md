@@ -35,7 +35,7 @@ The `training/` package turns an untrained `GPT` into a trained one. It owns eve
 | `training/checkpoint.py` | 125 | `CheckpointError`, `new_checkpoint_path`, `list_checkpoints`, `save_checkpoint`, `load_checkpoint` |
 | `ui/lab.py` | | `prepare_data`, `run_training` and the stop and resume plumbing used by the training page |
 | `pages/page_training.py` | | the training lab page |
-| `tests/` | | `test_trainer.py` 18, `test_optimizers.py` 15, `test_data.py` 11, `test_schedulers.py` 9, `test_checkpoint.py` 9, `test_training.py` 8 |
+| `tests/` | | `test_trainer.py` 18, `test_optimizers.py` 15, `test_data.py` 11, `test_schedulers.py` 9, `test_checkpoint.py` 9 (`test_training.py` tests the figure builders of `viz/training.py`, see sub-task 7) |
 
 ## Data
 

@@ -59,7 +59,14 @@ Open `http://localhost:8601`.
 Drop `.txt` or `.md` files into `input/`, enable *Files from input/* in the
 sidebar and press **Apply and re-initialise**.
 
-## 6. Run the tests
+## 6. Read or rebuild the sub-task documentation
+
+Open `Docs/subtasks/index.html` in a browser. It links the scientific
+explanation and the implementation guide of each of the ten sub-tasks. After
+editing a Markdown source in `Docs/subtasks/`, run `scripts/build-docs.sh`
+(`--only N` rebuilds one sub-task).
+
+## 7. Run the tests
 
 ```bash
 bash .bob/skills/test-gate/scripts/run_tests.sh .

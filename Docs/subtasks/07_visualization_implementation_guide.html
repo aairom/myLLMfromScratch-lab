@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>7. Implementation guide: the visualization layer – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 7 of 10 · Implementation guide</p>
+<h1>7. Implementation guide: the visualization layer</h1>
+<p class="lede">Plotly figure builders: PCA projections, heat maps, attention maps and live training curves.</p>
+<ul class="badges" aria-label="Key facts"><li>1,090 words</li><li>13 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="07_visualization_explanation.html">Explanation</a><a href="07_visualization_implementation_guide.html" aria-current="page">Implementation guide</a><a href="06_training_pipeline_implementation_guide.html">← 6. Training pipeline</a><a href="08_educational_content_implementation_guide.html">8. Educational content layer →</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#role-in-the-project">Role in the project</a></li><li><a href="#module-map">Module map</a></li><li><a href="#shared-helpers">Shared helpers</a><ul><li><a href="#contract-figures-never-raise-for-missing-data">Contract: figures never raise for missing data</a></li></ul></li><li><a href="#embedding-figures">Embedding figures</a></li><li><a href="#attention-and-normalisation-figures">Attention and normalisation figures</a></li><li><a href="#token-figures">Token figures</a></li><li><a href="#training-figures">Training figures</a></li><li><a href="#data-flow-figures">Data-flow figures</a></li><li><a href="#where-each-builder-is-used">Where each builder is used</a></li><li><a href="#configuration-and-environment">Configuration and environment</a></li><li><a href="#runtime-behaviour">Runtime behaviour</a></li><li><a href="#tests">Tests</a></li><li><a href="#common-pitfalls">Common pitfalls</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_implementation_guide.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_implementation_guide.html">Tokenization</a></li><li><a href="03_embeddings_positional_implementation_guide.html">Embeddings and positional encoding</a></li><li><a href="04_attention_layers_implementation_guide.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_implementation_guide.html">Full transformer (GPT) and generation</a></li><li><a href="06_training_pipeline_implementation_guide.html">Training pipeline</a></li><li aria-current="step"><a href="07_visualization_implementation_guide.html">Visualization layer</a></li><li><a href="08_educational_content_implementation_guide.html">Educational content layer</a></li><li><a href="09_streamlit_app_implementation_guide.html">Streamlit application and learning pages</a></li><li><a href="10_scripts_docs_compliance_implementation_guide.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="role-in-the-project">Role in the project</h2>
+<p><code>viz/</code> is the only place where Plotly figures are made. Each function is <strong>pure</strong>: it takes tensors, lists or a metrics history and returns a <code>plotly.graph_objects.Figure</code>. No function imports Streamlit, and only <code>viz/training.py</code> imports model code (the <code>GPTConfig</code> dataclass, to derive shapes). The pages call a builder and hand the result to <code>ui.components.plot</code>, which draws it.</p>
+<figure class="flow"><figcaption>Where a figure comes from</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code> model / tokenizer / history
+        |
+        v
+ ui.demo.*  or  state[&quot;history&quot;]        compute the tensors (no drawing)
+        |
+        v
+ viz.&lt;module&gt;.&lt;builder&gt;(...)            pure function -&gt; go.Figure
+        |
+        v
+ ui.components.plot(fig, key)           st.plotly_chart(fig, width=&quot;stretch&quot;, key=key)</code></pre></figure>
+<h2 id="module-map">Module map</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>File</th>
+<th>Lines</th>
+<th>Builders and helpers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>viz/common.py</code></td>
+<td>80</td>
+<td><code>to_numpy</code>, <code>display_token</code>, <code>unique_labels</code>, <code>empty_figure</code>, <code>heatmap</code></td>
+</tr>
+<tr>
+<td><code>viz/tokens.py</code></td>
+<td>82</td>
+<td><code>tokens_html</code>, <code>token_rows</code>, <code>merge_rows</code>, <code>vocab_frequency_figure</code>, <code>compression_figure</code></td>
+</tr>
+<tr>
+<td><code>viz/embeddings.py</code></td>
+<td>119</td>
+<td><code>pca_2d</code>, <code>cosine_similarity_matrix</code>, <code>embedding_heatmap</code>, <code>embedding_scatter</code>, <code>similarity_heatmap</code>, <code>positional_heatmap</code>, <code>positional_curves</code></td>
+</tr>
+<tr>
+<td><code>viz/attention.py</code></td>
+<td>123</td>
+<td><code>attention_heatmap</code>, <code>heads_grid</code>, <code>qkv_heatmap</code>, <code>attention_received_figure</code>, <code>layernorm_distribution</code>, <code>layernorm_token_stats</code></td>
+</tr>
+<tr>
+<td><code>viz/training.py</code></td>
+<td>182</td>
+<td><code>moving_average</code>, <code>loss_figure</code>, <code>lr_figure</code>, <code>grad_norm_figure</code>, <code>throughput_figure</code>, <code>schedule_figure</code>, <code>model_stages</code>, <code>block_stages</code>, <code>dataflow_figure</code>, <code>parameter_breakdown_figure</code></td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td></td>
+<td><code>test_common.py</code> 4, <code>test_tokens.py</code> 4, <code>test_viz_embeddings.py</code> 6, <code>test_viz_attention.py</code> 4, <code>test_training.py</code> 8</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="shared-helpers">Shared helpers</h2>
+<figure class="source"><figcaption>viz/common.py, lines 14-19: viz.common.to_numpy</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">to_numpy</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Tensor / list -&gt; float64 NumPy array; non-finite values (e.g. -inf masks) become NaN."""</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">double</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">arr</span><span class="p">),</span> <span class="n">arr</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+</code></pre></div>
+</figure>
+<p><code>to_numpy</code> is the single entry point for every matrix. It accepts a tensor or a list, detaches it, moves it to the CPU and converts it to <code>float64</code>. Non-finite values (<code>-inf</code> from the causal mask, <code>NaN</code>) become <code>NaN</code>, which Plotly draws as an empty cell. That is how masked attention scores appear blank.</p>
+<figure class="source"><figcaption>viz/common.py, lines 27-33: viz.common.unique_labels</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">unique_labels</span><span class="p">(</span><span class="n">tokens</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Axis labels that stay distinct even when a token repeats: ``"0·the"``, ``"4·the"``.</span>
+
+<span class="sd">    Plotly merges categorical labels that are equal, which would silently</span>
+<span class="sd">    collapse repeated tokens into one row/column.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">·</span><span class="si">{</span><span class="n">display_token</span><span class="p">(</span><span class="n">t</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tokens</span><span class="p">)]</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>viz/common.py, lines 46-80: viz.common.heatmap</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">heatmap</span><span class="p">(</span>
+    <span class="n">z</span><span class="p">,</span>
+    <span class="n">x_labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">y_labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+    <span class="n">colorscale</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"RdBu"</span><span class="p">,</span>
+    <span class="n">zmid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">zmin</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">zmax</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">x_title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+    <span class="n">y_title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+    <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">colorbar_title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Generic 2-D heat map with the row 0 at the top (matrix orientation)."""</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="n">to_numpy</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">arr</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">arr</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">empty_figure</span><span class="p">(</span><span class="n">title</span> <span class="ow">or</span> <span class="s2">"nothing to display"</span><span class="p">)</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">(</span>
+        <span class="n">go</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span>
+            <span class="n">z</span><span class="o">=</span><span class="n">arr</span><span class="p">,</span>
+            <span class="n">x</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">x_labels</span><span class="p">)</span> <span class="k">if</span> <span class="n">x_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">y_labels</span><span class="p">)</span> <span class="k">if</span> <span class="n">y_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">colorscale</span><span class="o">=</span><span class="n">colorscale</span><span class="p">,</span>
+            <span class="n">zmid</span><span class="o">=</span><span class="n">zmid</span><span class="p">,</span>
+            <span class="n">zmin</span><span class="o">=</span><span class="n">zmin</span><span class="p">,</span>
+            <span class="n">zmax</span><span class="o">=</span><span class="n">zmax</span><span class="p">,</span>
+            <span class="n">colorbar</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">colorbar_title</span><span class="p">),</span>
+            <span class="n">hoverongaps</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">autorange</span><span class="o">=</span><span class="s2">"reversed"</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">y_title</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">x_title</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">margin</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">40</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">fig</span>
+</code></pre></div>
+</figure>
+<figure class="flow"><figcaption>Defaults chosen by common.heatmap</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>colorscale   &quot;RdBu&quot;      diverging palette
+zmid         0.0         zero is the neutral colour
+y axis       reversed    row 0 at the top, like a matrix
+wrong rank   -&gt; empty_figure(title)     input must be 2-D and non-empty</code></pre></figure>
+<figure class="source"><figcaption>viz/common.py, lines 36-43: viz.common.empty_figure</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">empty_figure</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A blank figure carrying only a centred message (used for 'no data yet')."""</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">()</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_annotation</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">message</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">xref</span><span class="o">=</span><span class="s2">"paper"</span><span class="p">,</span> <span class="n">yref</span><span class="o">=</span><span class="s2">"paper"</span><span class="p">,</span> <span class="n">showarrow</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">visible</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">visible</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">margin</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">20</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">fig</span>
+</code></pre></div>
+</figure>
+<h3 id="contract-figures-never-raise-for-missing-data">Contract: figures never raise for missing data</h3>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>empty list, empty tensor, wrong number of dimensions</td>
+<td>a figure with no traces and one centred annotation</td>
+</tr>
+<tr>
+<td><code>NaN</code> or <code>inf</code> cells</td>
+<td>blank cells</td>
+</tr>
+<tr>
+<td>repeated tokens</td>
+<td>distinct axis labels (<code>0·e</code>, <code>4·e</code>)</td>
+</tr>
+<tr>
+<td>whitespace tokens</td>
+<td>visible stand-ins (<code>␣</code>, <code>⏎</code>, <code>⇥</code>, <code>␍</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Tests recognise an empty message figure as one with zero traces and exactly one annotation.</p>
+<h2 id="embedding-figures">Embedding figures</h2>
+<figure class="source"><figcaption>viz/embeddings.py, lines 12-31: viz.embeddings.pca_2d</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">pca_2d</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Project rows of ``matrix`` (N, D) onto their first two principal components.</span>
+
+<span class="sd">    Returns ``(coords (N, 2), explained_variance_ratio (2,))``. Degenerate inputs</span>
+<span class="sd">    (one row, one column, or all rows identical) give zeros instead of failing.</span>
+<span class="sd">    """</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">double</span><span class="p">)</span>
+    <span class="n">explained</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">double</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">d</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">coords</span><span class="p">,</span> <span class="n">explained</span>
+    <span class="n">centred</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">vh</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span><span class="n">centred</span><span class="p">,</span> <span class="n">full_matrices</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">vh</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">coords</span><span class="p">[:,</span> <span class="p">:</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">centred</span> <span class="o">@</span> <span class="n">vh</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">((</span><span class="n">s</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">total</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">explained</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">s</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">total</span>
+    <span class="k">return</span> <span class="n">coords</span><span class="p">,</span> <span class="n">explained</span>
+</code></pre></div>
+</figure>
+<figure class="flow"><figcaption>pca_2d(matrix)  matrix: (N, D)</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>centred = matrix - mean over rows
+        |  torch.linalg.svd(centred, full_matrices=False)  -&gt;  U, s, Vh
+        v
+coords    = centred @ Vh[:2].T            (N, 2)
+explained = s[:2]**2 / sum(s**2)          (2,)
+degenerate input (N &lt; 2, D &lt; 1, identical rows)  -&gt;  zeros, zeros</code></pre></figure>
+<figure class="source"><figcaption>viz/embeddings.py, lines 34-39: viz.embeddings.cosine_similarity_matrix</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cosine_similarity_matrix</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Pairwise cosine similarity of the rows: ``cos(a, b) = a.b / (|a||b|)``."""</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">double</span><span class="p">()</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">clamp_min</span><span class="p">(</span><span class="mf">1e-12</span><span class="p">)</span>
+    <span class="n">unit</span> <span class="o">=</span> <span class="n">x</span> <span class="o">/</span> <span class="n">norm</span>
+    <span class="k">return</span> <span class="n">unit</span> <span class="o">@</span> <span class="n">unit</span><span class="o">.</span><span class="n">T</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>viz/embeddings.py, lines 58-78: viz.embeddings.embedding_scatter</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">embedding_scatter</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""2-D PCA projection of the embedding vectors, one labelled point per token."""</span>
+    <span class="k">if</span> <span class="n">matrix</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">matrix</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">empty_figure</span><span class="p">(</span><span class="s2">"no embeddings to display"</span><span class="p">)</span>
+    <span class="n">coords</span><span class="p">,</span> <span class="n">explained</span> <span class="o">=</span> <span class="n">pca_2d</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">(</span>
+        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">coords</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">"markers+text"</span><span class="p">,</span>
+            <span class="n">text</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">labels</span><span class="p">),</span>
+            <span class="n">textposition</span><span class="o">=</span><span class="s2">"top center"</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+        <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">"PCA of embeddings (explains </span><span class="si">{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nb">float</span><span class="p">(</span><span class="n">explained</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">% of the variance)"</span><span class="p">,</span>
+        <span class="n">xaxis_title</span><span class="o">=</span><span class="sa">f</span><span class="s2">"PC1 (</span><span class="si">{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nb">float</span><span class="p">(</span><span class="n">explained</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">%)"</span><span class="p">,</span>
+        <span class="n">yaxis_title</span><span class="o">=</span><span class="sa">f</span><span class="s2">"PC2 (</span><span class="si">{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nb">float</span><span class="p">(</span><span class="n">explained</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">%)"</span><span class="p">,</span>
+        <span class="n">margin</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">40</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">fig</span>
+</code></pre></div>
+</figure>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Builder</th>
+<th>Input</th>
+<th>Colour range</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>embedding_heatmap(vectors, labels, max_dims=64)</code></td>
+<td><code>(N, D)</code></td>
+<td>diverging, zero-centred</td>
+<td>shows the first <code>max_dims</code> columns and says so in the title</td>
+</tr>
+<tr>
+<td><code>embedding_scatter(matrix, labels)</code></td>
+<td><code>(N, D)</code></td>
+<td></td>
+<td>title reports the explained variance, axes show each component's share</td>
+</tr>
+<tr>
+<td><code>similarity_heatmap(matrix, labels)</code></td>
+<td><code>(N, D)</code></td>
+<td>pinned to [-1, 1]</td>
+<td>cosine matrix, diagonal 1</td>
+</tr>
+<tr>
+<td><code>positional_heatmap(table)</code></td>
+<td><code>(T, D)</code></td>
+<td>pinned to [-1, 1]</td>
+<td>the sinusoidal table fits that range exactly</td>
+</tr>
+<tr>
+<td><code>positional_curves(table, dims=None)</code></td>
+<td><code>(T, D)</code></td>
+<td></td>
+<td>one line per selected dimension, even index labelled sin and odd cos</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="attention-and-normalisation-figures">Attention and normalisation figures</h2>
+<figure class="source"><figcaption>viz/attention.py, lines 12-36: viz.attention.attention_heatmap</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">attention_heatmap</span><span class="p">(</span>
+    <span class="n">weights</span><span class="p">,</span>
+    <span class="n">tokens</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"Attention weights"</span><span class="p">,</span>
+    <span class="n">pre_softmax</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Attention matrix ``(T, T)``: row = query token, column = key token it looks at.</span>
+
+<span class="sd">    With ``pre_softmax=True`` the raw scores are shown (masked cells are blank);</span>
+<span class="sd">    otherwise rows are probabilities that sum to 1.</span>
+<span class="sd">    """</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">unique_labels</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">heatmap</span><span class="p">(</span>
+        <span class="n">weights</span><span class="p">,</span>
+        <span class="n">x_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+        <span class="n">y_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">colorscale</span><span class="o">=</span><span class="s2">"RdBu"</span> <span class="k">if</span> <span class="n">pre_softmax</span> <span class="k">else</span> <span class="s2">"Blues"</span><span class="p">,</span>
+        <span class="n">zmid</span><span class="o">=</span><span class="mf">0.0</span> <span class="k">if</span> <span class="n">pre_softmax</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">zmin</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">pre_softmax</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">zmax</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">pre_softmax</span> <span class="k">else</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">x_title</span><span class="o">=</span><span class="s2">"key (attended to)"</span><span class="p">,</span>
+        <span class="n">y_title</span><span class="o">=</span><span class="s2">"query (looking)"</span><span class="p">,</span>
+        <span class="n">colorbar_title</span><span class="o">=</span><span class="s2">"score"</span> <span class="k">if</span> <span class="n">pre_softmax</span> <span class="k">else</span> <span class="s2">"weight"</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>viz/attention.py, lines 39-59: viz.attention.heads_grid</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">heads_grid</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">tokens</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">max_cols</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Small multiples: the attention pattern of every head ``weights`` ``(H, T, T)``."""</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="n">to_numpy</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">arr</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">arr</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">empty_figure</span><span class="p">(</span><span class="s2">"no attention weights"</span><span class="p">)</span>
+    <span class="n">n_heads</span> <span class="o">=</span> <span class="n">arr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_cols</span><span class="p">,</span> <span class="n">n_heads</span><span class="p">)</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="o">-</span><span class="n">n_heads</span> <span class="o">//</span> <span class="n">cols</span><span class="p">)</span>  <span class="c1"># ceil division</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">unique_labels</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">make_subplots</span><span class="p">(</span><span class="n">rows</span><span class="o">=</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span> <span class="n">subplot_titles</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">"head </span><span class="si">{</span><span class="n">h</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_heads</span><span class="p">)])</span>
+    <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_heads</span><span class="p">):</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="n">arr</span><span class="p">[</span><span class="n">h</span><span class="p">],</span> <span class="n">x</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">colorscale</span><span class="o">=</span><span class="s2">"Blues"</span><span class="p">,</span> <span class="n">zmin</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">zmax</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">showscale</span><span class="o">=</span><span class="n">h</span> <span class="o">==</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="n">row</span><span class="o">=</span><span class="n">h</span> <span class="o">//</span> <span class="n">cols</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">col</span><span class="o">=</span><span class="n">h</span> <span class="o">%</span> <span class="n">cols</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">autorange</span><span class="o">=</span><span class="s2">"reversed"</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">showticklabels</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">showticklabels</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">"Attention pattern per head"</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">260</span> <span class="o">*</span> <span class="n">rows</span> <span class="o">+</span> <span class="mi">60</span><span class="p">,</span> <span class="n">margin</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">20</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">fig</span>
+</code></pre></div>
+</figure>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Builder</th>
+<th>Input</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>attention_heatmap(weights, tokens, pre_softmax=False)</code></td>
+<td><code>(T, T)</code></td>
+<td>probabilities use <code>Blues</code> pinned to [0, 1]; raw scores use <code>RdBu</code> centred on 0</td>
+</tr>
+<tr>
+<td><code>heads_grid(weights, tokens, max_cols=4)</code></td>
+<td><code>(H, T, T)</code></td>
+<td>small multiples; grid size <code>ceil(H / cols)</code> rows; one shared colour bar</td>
+</tr>
+<tr>
+<td><code>qkv_heatmap(matrix, tokens, name, head=None)</code></td>
+<td><code>(T, d_k)</code></td>
+<td>rows are tokens, columns are dimensions inside the head</td>
+</tr>
+<tr>
+<td><code>attention_received_figure(weights, tokens)</code></td>
+<td><code>(T, T)</code> or <code>(H, T, T)</code></td>
+<td>column mean of the weights, heads averaged first</td>
+</tr>
+<tr>
+<td><code>layernorm_distribution(before, after)</code></td>
+<td>any shape</td>
+<td>two overlaid histograms, 40 bins</td>
+</tr>
+<tr>
+<td><code>layernorm_token_stats(before, after, tokens)</code></td>
+<td>two <code>(T, D)</code></td>
+<td>per-token mean and standard deviation; shapes must match</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="token-figures">Token figures</h2>
+<figure class="source"><figcaption>viz/tokens.py, lines 15-27: viz.tokens.tokens_html</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tokens_html</span><span class="p">(</span><span class="n">tokens</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""HTML for coloured token chips; hovering a chip shows its id."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">tokens</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"&lt;em&gt;no tokens&lt;/em&gt;"</span>
+    <span class="n">chips</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">tok</span><span class="p">,</span> <span class="n">tid</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">tokens</span><span class="p">,</span> <span class="n">ids</span><span class="p">)):</span>
+        <span class="n">colour</span> <span class="o">=</span> <span class="n">_PALETTE</span><span class="p">[</span><span class="n">i</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">_PALETTE</span><span class="p">)]</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="n">escape</span><span class="p">(</span><span class="n">display_token</span><span class="p">(</span><span class="n">tok</span><span class="p">))</span>
+        <span class="n">chips</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">'&lt;span title="id </span><span class="si">{</span><span class="n">tid</span><span class="si">}</span><span class="s1">" style="background:</span><span class="si">{</span><span class="n">colour</span><span class="si">}</span><span class="s1">;color:#1f2328;padding:2px 4px;'</span>
+            <span class="sa">f</span><span class="s1">'margin:1px;border-radius:4px;font-family:monospace;display:inline-block"&gt;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&lt;/span&gt;'</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chips</span><span class="p">)</span>
+</code></pre></div>
+</figure>
+<p><code>tokens_html</code> is the only builder that returns <strong>HTML</strong> instead of a figure. Every token label is passed through <code>html.escape</code> before it is placed in a coloured chip, so user text can never inject markup; the page renders it with <code>unsafe_allow_html</code> for that reason only. The chip title attribute shows the token id.</p>
+<figure class="source"><figcaption>viz/tokens.py, lines 35-51: viz.tokens.merge_rows</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">merge_rows</span><span class="p">(</span><span class="n">tokenizer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""One row per BPE merge: what was merged, how often, and the runner-up pairs."""</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">tokenizer</span><span class="p">,</span> <span class="s2">"trace"</span><span class="p">,</span> <span class="p">[]):</span>
+        <span class="n">runner_ups</span> <span class="o">=</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">display_token</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="si">}</span><span class="s2">+</span><span class="si">{</span><span class="n">display_token</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2">)"</span> <span class="k">for</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">),</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">step</span><span class="o">.</span><span class="n">top_pairs</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"step"</span><span class="p">:</span> <span class="n">step</span><span class="o">.</span><span class="n">step</span><span class="p">,</span>
+                <span class="s2">"merged pair"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">display_token</span><span class="p">(</span><span class="n">step</span><span class="o">.</span><span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">}</span><span class="s2"> + </span><span class="si">{</span><span class="n">display_token</span><span class="p">(</span><span class="n">step</span><span class="o">.</span><span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="s2">"count"</span><span class="p">:</span> <span class="n">step</span><span class="o">.</span><span class="n">count</span><span class="p">,</span>
+                <span class="s2">"new token"</span><span class="p">:</span> <span class="n">display_token</span><span class="p">(</span><span class="n">step</span><span class="o">.</span><span class="n">new_token</span><span class="p">),</span>
+                <span class="s2">"runner-ups"</span><span class="p">:</span> <span class="n">runner_ups</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">rows</span>
+</code></pre></div>
+</figure>
+<p><code>merge_rows</code> reads <code>tokenizer.trace</code>. A tokenizer restored from a checkpoint has an empty trace (<code>BPETokenizer.to_dict</code> does not store it), so the merge table is empty after loading a checkpoint.</p>
+<h2 id="training-figures">Training figures</h2>
+<figure class="source"><figcaption>viz/training.py, lines 18-27: viz.training.moving_average</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">moving_average</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">window</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Trailing moving average (the first points average over fewer samples)."""</span>
+    <span class="k">if</span> <span class="n">window</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"window must be &gt;= 1"</span><span class="p">)</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">arr</span><span class="p">)):</span>
+        <span class="n">lo</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span> <span class="o">-</span> <span class="n">window</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">arr</span><span class="p">[</span><span class="n">lo</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()))</span>
+    <span class="k">return</span> <span class="n">out</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>viz/training.py, lines 41-70: viz.training.loss_figure</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">loss_figure</span><span class="p">(</span>
+    <span class="n">history</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span>
+    <span class="n">smooth_window</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">baseline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">log_y</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Training and validation loss versus step.</span>
+
+<span class="sd">    ``baseline`` draws the loss of a uniform guesser, ``ln(vocab_size)``.</span>
+<span class="sd">    """</span>
+    <span class="n">steps</span><span class="p">,</span> <span class="n">train</span> <span class="o">=</span> <span class="n">_series</span><span class="p">(</span><span class="n">history</span><span class="p">,</span> <span class="s2">"train_loss"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">steps</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">empty_figure</span><span class="p">(</span><span class="s2">"Loss curve appears here once training starts"</span><span class="p">)</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">()</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">steps</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">train</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"lines"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"train (raw)"</span><span class="p">,</span> <span class="n">opacity</span><span class="o">=</span><span class="mf">0.35</span> <span class="k">if</span> <span class="n">smooth_window</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">1.0</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">smooth_window</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">steps</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">moving_average</span><span class="p">(</span><span class="n">train</span><span class="p">,</span> <span class="n">smooth_window</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"lines"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">"train (avg </span><span class="si">{</span><span class="n">smooth_window</span><span class="si">}</span><span class="s2">)"</span><span class="p">))</span>
+    <span class="n">vx</span><span class="p">,</span> <span class="n">vy</span> <span class="o">=</span> <span class="n">_series</span><span class="p">(</span><span class="n">history</span><span class="p">,</span> <span class="s2">"val_loss"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">vx</span><span class="p">:</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">vx</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">vy</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"lines+markers"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"validation"</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">baseline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_hline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">baseline</span><span class="p">,</span> <span class="n">line_dash</span><span class="o">=</span><span class="s2">"dot"</span><span class="p">,</span> <span class="n">annotation_text</span><span class="o">=</span><span class="s2">"uniform guess ln(V)"</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+        <span class="n">title</span><span class="o">=</span><span class="s2">"Cross-entropy loss"</span><span class="p">,</span>
+        <span class="n">xaxis_title</span><span class="o">=</span><span class="s2">"step"</span><span class="p">,</span>
+        <span class="n">yaxis_title</span><span class="o">=</span><span class="s2">"loss"</span><span class="p">,</span>
+        <span class="n">yaxis_type</span><span class="o">=</span><span class="s2">"log"</span> <span class="k">if</span> <span class="n">log_y</span> <span class="k">else</span> <span class="s2">"linear"</span><span class="p">,</span>
+        <span class="n">margin</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">40</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">fig</span>
+</code></pre></div>
+</figure>
+<figure class="flow"><figcaption>Metrics history -&gt; figure</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>history = [ {step, train_loss, val_loss, lr, grad_norm, tokens_per_sec, ...}, ... ]
+     |  _series(history, key): keep rows where the value is present and finite
+     v
+ (steps, values)  -&gt;  go.Scatter
+loss_figure: raw train line (opacity 0.35 when smoothed) + moving average + validation markers
+             optional dotted line at ln(V); optional log y axis
+lr_figure / grad_norm_figure / throughput_figure -&gt; one line each, empty message before training</code></pre></figure>
+<h2 id="data-flow-figures">Data-flow figures</h2>
+<figure class="source"><figcaption>viz/training.py, lines 110-122: viz.training.model_stages</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">model_stages</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">GPTConfig</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">seq</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">"""``(name, description, tensor_shape)`` for each stage of a full forward pass."""</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">seq</span> <span class="k">if</span> <span class="n">seq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">cfg</span><span class="o">.</span><span class="n">max_seq_len</span>
+    <span class="n">b</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">batch</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">d_model</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">vocab_size</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">"Token ids"</span><span class="p">,</span> <span class="s2">"integers from the tokenizer"</span><span class="p">,</span> <span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">t</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"Token embedding"</span><span class="p">,</span> <span class="s2">"table lookup: id -&gt; vector"</span><span class="p">,</span> <span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">d</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"+ Positional encoding"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">positional</span><span class="si">}</span><span class="s2">: adds order information"</span><span class="p">,</span> <span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">d</span><span class="p">)),</span>
+        <span class="p">(</span><span class="sa">f</span><span class="s2">"Transformer block x </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">n_layers</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"attention + feed-forward with residuals"</span><span class="p">,</span> <span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">d</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"Final LayerNorm"</span><span class="p">,</span> <span class="s2">"normalise each token vector"</span><span class="p">,</span> <span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">d</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"Linear head -&gt; logits"</span><span class="p">,</span> <span class="s2">"one score per vocabulary token"</span><span class="p">,</span> <span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">v</span><span class="p">)),</span>
+        <span class="p">(</span><span class="s2">"Softmax -&gt; probabilities"</span><span class="p">,</span> <span class="s2">"next-token distribution"</span><span class="p">,</span> <span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">v</span><span class="p">)),</span>
+    <span class="p">]</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>viz/training.py, lines 140-167: viz.training.dataflow_figure</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">dataflow_figure</span><span class="p">(</span><span class="n">stages</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">]],</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"Data flow"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Top-to-bottom flow chart: one box per stage, labelled with its tensor shape."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">stages</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">empty_figure</span><span class="p">(</span><span class="s2">"no stages"</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">stages</span><span class="p">)</span>
+    <span class="n">step_y</span><span class="p">,</span> <span class="n">box_h</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.62</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">desc</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stages</span><span class="p">):</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">i</span><span class="p">)</span> <span class="o">*</span> <span class="n">step_y</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_shape</span><span class="p">(</span>
+            <span class="nb">type</span><span class="o">=</span><span class="s2">"rect"</span><span class="p">,</span> <span class="n">x0</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">x1</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span> <span class="n">y0</span><span class="o">=</span><span class="n">y</span> <span class="o">-</span> <span class="n">box_h</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">y1</span><span class="o">=</span><span class="n">y</span> <span class="o">+</span> <span class="n">box_h</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">"#3b82d4"</span><span class="p">),</span> <span class="n">fillcolor</span><span class="o">=</span><span class="s2">"#eef4fc"</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_annotation</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">showarrow</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">align</span><span class="o">=</span><span class="s2">"center"</span><span class="p">,</span>
+            <span class="n">text</span><span class="o">=</span><span class="sa">f</span><span class="s2">"&lt;b&gt;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px'&gt;</span><span class="si">{</span><span class="n">desc</span><span class="si">}</span><span class="s2">&lt;/span&gt;&lt;br&gt;"</span>
+                 <span class="sa">f</span><span class="s2">"&lt;span style='font-size:11px'&gt;shape </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;/span&gt;"</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">add_annotation</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span> <span class="o">-</span> <span class="n">box_h</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">-</span> <span class="mf">0.02</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">ay</span><span class="o">=</span><span class="n">y</span> <span class="o">-</span> <span class="n">step_y</span> <span class="o">+</span> <span class="n">box_h</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="mf">0.02</span><span class="p">,</span>
+                <span class="n">xref</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">yref</span><span class="o">=</span><span class="s2">"y"</span><span class="p">,</span> <span class="n">axref</span><span class="o">=</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">ayref</span><span class="o">=</span><span class="s2">"y"</span><span class="p">,</span> <span class="n">showarrow</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">arrowhead</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">arrowwidth</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">arrowcolor</span><span class="o">=</span><span class="s2">"#57606a"</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span>
+            <span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">visible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">visible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">n</span> <span class="o">-</span> <span class="mf">0.4</span><span class="p">])</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">95</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">60</span><span class="p">,</span> <span class="n">margin</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">10</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">fig</span>
+</code></pre></div>
+</figure>
+<p><code>dataflow_figure</code> draws one rectangle shape and one annotation per stage, plus an arrow annotation between neighbouring stages, so a pipeline of n stages has n shapes and 2n - 1 annotations. The height is <code>95 * n + 60</code> pixels. A test builds a real <code>GPT</code> and compares the shapes in the diagram with the shapes returned by <code>model(ids, return_details=True)</code>, so the picture cannot drift away from the model.</p>
+<figure class="source"><figcaption>viz/training.py, lines 170-182: viz.training.parameter_breakdown_figure</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">parameter_breakdown_figure</span><span class="p">(</span><span class="n">breakdown</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Horizontal bars of parameters per component (the ``total`` entry is excluded)."""</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="p">[(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">breakdown</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">"total"</span> <span class="ow">and</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">items</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">empty_figure</span><span class="p">(</span><span class="s2">"no parameters"</span><span class="p">)</span>
+    <span class="n">items</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">kv</span><span class="p">:</span> <span class="n">kv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Bar</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">items</span><span class="p">],</span> <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"_"</span><span class="p">,</span> <span class="s2">" "</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">items</span><span class="p">],</span> <span class="n">orientation</span><span class="o">=</span><span class="s2">"h"</span><span class="p">))</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+        <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">"Parameters by component (total </span><span class="si">{</span><span class="n">breakdown</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'total'</span><span class="p">,</span><span class="w"> </span><span class="nb">sum</span><span class="p">(</span><span class="n">v</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">items</span><span class="p">))</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">)"</span><span class="p">,</span>
+        <span class="n">xaxis_title</span><span class="o">=</span><span class="s2">"parameters"</span><span class="p">,</span>
+        <span class="n">margin</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">40</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">fig</span>
+</code></pre></div>
+</figure>
+<p>The <code>total</code> entry of <code>GPT.parameter_breakdown()</code> is excluded from the bars and used in the title; components with zero parameters (positional encoding and a tied output head by default) are not drawn.</p>
+<h2 id="where-each-builder-is-used">Where each builder is used</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Page</th>
+<th>Builders</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>page_home.py</code></td>
+<td><code>dataflow_figure</code>, <code>model_stages</code></td>
+</tr>
+<tr>
+<td><code>page_tokenization.py</code></td>
+<td><code>tokens_html</code>, <code>token_rows</code>, <code>merge_rows</code>, <code>vocab_frequency_figure</code>, <code>compression_figure</code></td>
+</tr>
+<tr>
+<td><code>page_embeddings.py</code></td>
+<td><code>embedding_heatmap</code>, <code>embedding_scatter</code>, <code>similarity_heatmap</code></td>
+</tr>
+<tr>
+<td><code>page_positional.py</code></td>
+<td><code>positional_heatmap</code>, <code>positional_curves</code>, <code>cosine_similarity_matrix</code>, <code>heatmap</code></td>
+</tr>
+<tr>
+<td><code>page_attention.py</code></td>
+<td><code>attention_heatmap</code>, <code>qkv_heatmap</code>, <code>attention_received_figure</code></td>
+</tr>
+<tr>
+<td><code>page_multihead.py</code></td>
+<td><code>attention_heatmap</code>, <code>heads_grid</code></td>
+</tr>
+<tr>
+<td><code>page_norm_ffn.py</code></td>
+<td><code>layernorm_distribution</code>, <code>layernorm_token_stats</code>, <code>heatmap</code></td>
+</tr>
+<tr>
+<td><code>page_transformer.py</code></td>
+<td><code>attention_heatmap</code>, <code>heads_grid</code>, <code>heatmap</code>, <code>model_stages</code>, <code>block_stages</code>, <code>dataflow_figure</code>, <code>parameter_breakdown_figure</code></td>
+</tr>
+<tr>
+<td><code>page_inference.py</code></td>
+<td><code>attention_heatmap</code>, <code>empty_figure</code></td>
+</tr>
+<tr>
+<td><code>page_training.py</code></td>
+<td><code>loss_figure</code>, <code>lr_figure</code>, <code>grad_norm_figure</code>, <code>throughput_figure</code>, <code>schedule_figure</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="configuration-and-environment">Configuration and environment</h2>
+<p>The layer reads no environment variable and no configuration file. Colours are Plotly defaults plus three fixed values in <code>dataflow_figure</code> (<code>#3b82d4</code> outline, <code>#eef4fc</code> fill, <code>#57606a</code> arrows) and a six-colour pastel cycle for token chips. The only runtime parameters are function arguments.</p>
+<h2 id="runtime-behaviour">Runtime behaviour</h2>
+<ul>
+<li>Figures are built on the CPU in float64, so the cost is negligible for the default sizes (a 64 x 64 attention matrix, 300 history rows).</li>
+<li>Every chart on a page needs a <strong>unique Streamlit key</strong>. The training page appends a frame counter to its keys because the same chart is redrawn many times while a run streams metrics.</li>
+<li>Colour ranges are fixed for probabilities and similarities, so two figures of the same kind can be compared directly.</li>
+<li>PCA is deterministic up to the sign of each component.</li>
+</ul>
+<h2 id="tests">Tests</h2>
+<p>The tests check the PCA output shapes and the explained variance, that PCA recovers a dominant axis exactly, the degenerate inputs, the cosine matrix, that masked attention cells are blank (not zero), the layout of the heads grid, the NaN-tolerant series extraction, the moving average, the stage shapes against a real model, and the parameter bars.</p>
+<h2 id="common-pitfalls">Common pitfalls</h2>
+<ul>
+<li><strong>Two identical keys on one page</strong> raise a Streamlit duplicate-element error. Give every <code>plot(...)</code> call its own key.</li>
+<li><strong>Passing a probability matrix with <code>-inf</code> cells</strong> is fine, but passing raw scores to a builder that pins the range to [0, 1] hides the structure; use <code>pre_softmax=True</code>.</li>
+<li><strong>Reading a PCA plot of a random table.</strong> Before training the first two components explain only about 12 % of the variance; there is nothing to see.</li>
+<li><strong>Expecting merges after loading a checkpoint.</strong> The merge trace is not saved.</li>
+</ul>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>

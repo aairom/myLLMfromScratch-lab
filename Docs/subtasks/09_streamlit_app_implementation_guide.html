@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>9. Implementation guide: the Streamlit application – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 9 of 10 · Implementation guide</p>
+<h1>9. Implementation guide: the Streamlit application</h1>
+<p class="lede">Navigation, shared session state, ten pages, live training lab and inference page.</p>
+<ul class="badges" aria-label="Key facts"><li>1,204 words</li><li>13 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="09_streamlit_app_explanation.html">Explanation</a><a href="09_streamlit_app_implementation_guide.html" aria-current="page">Implementation guide</a><a href="08_educational_content_implementation_guide.html">← 8. Educational content layer</a><a href="10_scripts_docs_compliance_implementation_guide.html">10. Scripts, documentation and compliance →</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#role-in-the-project">Role in the project</a></li><li><a href="#module-map">Module map</a></li><li><a href="#the-page-registry">The page registry</a></li><li><a href="#settings">Settings</a></li><li><a href="#session-state">Session state</a></li><li><a href="#building-the-model">Building the model</a></li><li><a href="#the-sidebar">The sidebar</a></li><li><a href="#the-training-page-and-the-lab-helpers">The training page and the lab helpers</a><ul><li><a href="#unique-chart-keys">Unique chart keys</a></li></ul></li><li><a href="#the-demonstration-helpers">The demonstration helpers</a></li><li><a href="#environment-variables">Environment variables</a></li><li><a href="#runtime-behaviour">Runtime behaviour</a></li><li><a href="#tests">Tests</a></li><li><a href="#common-pitfalls">Common pitfalls</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_implementation_guide.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_implementation_guide.html">Tokenization</a></li><li><a href="03_embeddings_positional_implementation_guide.html">Embeddings and positional encoding</a></li><li><a href="04_attention_layers_implementation_guide.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_implementation_guide.html">Full transformer (GPT) and generation</a></li><li><a href="06_training_pipeline_implementation_guide.html">Training pipeline</a></li><li><a href="07_visualization_implementation_guide.html">Visualization layer</a></li><li><a href="08_educational_content_implementation_guide.html">Educational content layer</a></li><li aria-current="step"><a href="09_streamlit_app_implementation_guide.html">Streamlit application and learning pages</a></li><li><a href="10_scripts_docs_compliance_implementation_guide.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="role-in-the-project">Role in the project</h2>
+<p><code>app.py</code> is the entry point that <code>scripts/start.sh</code> launches. It prepares the shared session state, draws the sidebar and registers the ten pages. Everything else the learner sees is a page script that calls helpers from <code>ui/</code>, figure builders from <code>viz/</code> and lessons from <code>edu/</code>.</p>
+<figure class="flow"><figcaption>Request path for one rerun</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code> browser event (widget changed)
+        |
+        v
+ Streamlit re-executes app.py:main()
+        |-- st.set_page_config(layout=&quot;wide&quot;)
+        |-- init_state(st.session_state)           fill missing keys, never overwrite
+        |-- ensure_model(st.session_state)         build default model on first use
+        |-- render_sidebar(st.session_state)       metrics, settings form, Apply
+        &#x27;-- st.navigation(build_pages()).run()     executes the selected pages/page_*.py
+                     |
+                     v
+              page script:  init_page() -&gt; page_header -&gt; lesson_tabs -&gt; widgets -&gt; ui.demo / ui.lab -&gt; viz -&gt; plot(fig, key)</code></pre></figure>
+<h2 id="module-map">Module map</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>File</th>
+<th>Lines</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app.py</code></td>
+<td>46</td>
+<td><code>PAGES</code>, <code>build_pages</code>, <code>main</code></td>
+</tr>
+<tr>
+<td><code>ui/state.py</code></td>
+<td>235</td>
+<td><code>ModelSettings</code>, <code>default_settings</code>, <code>init_state</code>, <code>make_tokenizer</code>, <code>build_model</code>, <code>apply_settings</code>, <code>ensure_model</code>, <code>settings_from_model</code>, <code>adopt_checkpoint</code>, <code>get_device</code></td>
+</tr>
+<tr>
+<td><code>ui/sidebar.py</code></td>
+<td>102</td>
+<td><code>settings_form</code>, <code>render_sidebar</code>, <code>SOURCE_LABELS</code></td>
+</tr>
+<tr>
+<td><code>ui/components.py</code></td>
+<td>98</td>
+<td>shared widgets and the lesson tabs (see sub-task 8)</td>
+</tr>
+<tr>
+<td><code>ui/lab.py</code></td>
+<td>147</td>
+<td><code>prepare_data</code>, <code>check_train_config</code>, <code>schedule_preview</code>, <code>run_training</code>, <code>finish_message</code>, <code>save_current</code>, <code>available_checkpoints</code>, <code>load_into_state</code>, <code>history_summary</code></td>
+</tr>
+<tr>
+<td><code>ui/demo.py</code></td>
+<td>255</td>
+<td>the non-Streamlit demonstrations used by the learning pages</td>
+</tr>
+<tr>
+<td><code>pages/</code></td>
+<td></td>
+<td>ten scripts, <code>page_home.py</code> 37 lines to <code>page_training.py</code> 138 lines</td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td></td>
+<td><code>conftest.py</code>, <code>test_app.py</code> 8, <code>test_state.py</code> 25, <code>test_sidebar.py</code> 3, <code>test_lab.py</code> 19, <code>test_demo.py</code> 32, ten <code>test_page_*.py</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="the-page-registry">The page registry</h2>
+<figure class="source"><figcaption>app.py, lines 29-34: app.build_pages</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build_pages</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The ``st.Page`` objects, with Home as the default landing page."""</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="n">st</span><span class="o">.</span><span class="n">Page</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">icon</span><span class="o">=</span><span class="n">icon</span><span class="p">,</span> <span class="n">url_path</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">icon</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">PAGES</span><span class="p">)</span>
+    <span class="p">]</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>app.py, lines 14-26</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="c1"># (file, title, icon, url path) in teaching order.</span>
+<span class="n">PAGES</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">(</span><span class="s2">"pages/page_home.py"</span><span class="p">,</span> <span class="s2">"Home"</span><span class="p">,</span> <span class="s2">":material/home:"</span><span class="p">,</span> <span class="s2">"home"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"pages/page_tokenization.py"</span><span class="p">,</span> <span class="s2">"1. Tokenization"</span><span class="p">,</span> <span class="s2">":material/text_fields:"</span><span class="p">,</span> <span class="s2">"tokenization"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"pages/page_embeddings.py"</span><span class="p">,</span> <span class="s2">"2. Embeddings"</span><span class="p">,</span> <span class="s2">":material/scatter_plot:"</span><span class="p">,</span> <span class="s2">"embeddings"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"pages/page_positional.py"</span><span class="p">,</span> <span class="s2">"3. Positional encoding"</span><span class="p">,</span> <span class="s2">":material/waves:"</span><span class="p">,</span> <span class="s2">"positional"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"pages/page_attention.py"</span><span class="p">,</span> <span class="s2">"4. Attention"</span><span class="p">,</span> <span class="s2">":material/visibility:"</span><span class="p">,</span> <span class="s2">"attention"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"pages/page_multihead.py"</span><span class="p">,</span> <span class="s2">"5. Multi-head attention"</span><span class="p">,</span> <span class="s2">":material/grid_view:"</span><span class="p">,</span> <span class="s2">"multihead"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"pages/page_norm_ffn.py"</span><span class="p">,</span> <span class="s2">"6. LayerNorm and FFN"</span><span class="p">,</span> <span class="s2">":material/tune:"</span><span class="p">,</span> <span class="s2">"norm-ffn"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"pages/page_transformer.py"</span><span class="p">,</span> <span class="s2">"7. Full transformer"</span><span class="p">,</span> <span class="s2">":material/account_tree:"</span><span class="p">,</span> <span class="s2">"transformer"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"pages/page_training.py"</span><span class="p">,</span> <span class="s2">"8. Training lab"</span><span class="p">,</span> <span class="s2">":material/model_training:"</span><span class="p">,</span> <span class="s2">"training"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"pages/page_inference.py"</span><span class="p">,</span> <span class="s2">"9. Inference"</span><span class="p">,</span> <span class="s2">":material/chat:"</span><span class="p">,</span> <span class="s2">"inference"</span><span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
+</figure>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>File</th>
+<th>Title</th>
+<th>URL path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>pages/page_home.py</code></td>
+<td>Home (default)</td>
+<td><code>home</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>pages/page_tokenization.py</code></td>
+<td>1. Tokenization</td>
+<td><code>tokenization</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>pages/page_embeddings.py</code></td>
+<td>2. Embeddings</td>
+<td><code>embeddings</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>pages/page_positional.py</code></td>
+<td>3. Positional encoding</td>
+<td><code>positional</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>pages/page_attention.py</code></td>
+<td>4. Attention</td>
+<td><code>attention</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>pages/page_multihead.py</code></td>
+<td>5. Multi-head attention</td>
+<td><code>multihead</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>pages/page_norm_ffn.py</code></td>
+<td>6. LayerNorm and FFN</td>
+<td><code>norm-ffn</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>pages/page_transformer.py</code></td>
+<td>7. Full transformer</td>
+<td><code>transformer</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>pages/page_training.py</code></td>
+<td>8. Training lab</td>
+<td><code>training</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>pages/page_inference.py</code></td>
+<td>9. Inference</td>
+<td><code>inference</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The page titles number the model-building stages 1 to 9, which is a different numbering from the ten sub-tasks of the project documentation.</p>
+<figure class="source"><figcaption>app.py, lines 37-42: app.main</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">st</span><span class="o">.</span><span class="n">set_page_config</span><span class="p">(</span><span class="n">page_title</span><span class="o">=</span><span class="s2">"LLM from scratch"</span><span class="p">,</span> <span class="n">page_icon</span><span class="o">=</span><span class="s2">":material/neurology:"</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s2">"wide"</span><span class="p">)</span>
+    <span class="n">init_state</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">session_state</span><span class="p">)</span>
+    <span class="n">ensure_model</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">session_state</span><span class="p">)</span>  <span class="c1"># an error is shown in the sidebar and on each page</span>
+    <span class="n">render_sidebar</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">session_state</span><span class="p">)</span>
+    <span class="n">st</span><span class="o">.</span><span class="n">navigation</span><span class="p">(</span><span class="n">build_pages</span><span class="p">())</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+</figure>
+<p>Importing <code>app</code> has no side effects: <code>main()</code> runs only under <code>if __name__ == "__main__"</code>, which is how Streamlit executes the entry script. A test relies on this to import the page table.</p>
+<h2 id="settings">Settings</h2>
+<figure class="source"><figcaption>ui/state.py, lines 36-100: ui.state.ModelSettings</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ModelSettings</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Everything the sidebar controls: data source, tokenizer and architecture."""</span>
+
+    <span class="n">tokenizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"char"</span>
+    <span class="n">bpe_merges</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">use_bundled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">use_input</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">d_model</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span>
+    <span class="n">n_heads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">n_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">max_seq_len</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span>
+    <span class="n">ffn_mult</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"gelu"</span>
+    <span class="n">positional</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"sinusoidal"</span>
+    <span class="n">embedding_init</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"normal"</span>
+    <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">tie_weights</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">42</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">problems</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Human-readable validation errors (an empty list means the settings are valid)."""</span>
+        <span class="n">out</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">TOKENIZER_KINDS</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Tokenizer must be one of </span><span class="si">{</span><span class="n">TOKENIZER_KINDS</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bpe_merges</span> <span class="o">&lt;=</span> <span class="n">MAX_BPE_MERGES</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"BPE merges must be between 0 and </span><span class="si">{</span><span class="n">MAX_BPE_MERGES</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"d_model"</span><span class="p">,</span> <span class="s2">"n_heads"</span><span class="p">,</span> <span class="s2">"n_layers"</span><span class="p">,</span> <span class="s2">"max_seq_len"</span><span class="p">,</span> <span class="s2">"ffn_mult"</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> must be positive."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">d_model</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_heads</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">d_model</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_heads</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"d_model (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">d_model</span><span class="si">}</span><span class="s2">) must be divisible by the number of heads (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_heads</span><span class="si">}</span><span class="s2">): "</span>
+                <span class="s2">"every head gets d_model / heads dimensions."</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ACTIVATIONS</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Activation must be one of </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">ACTIVATIONS</span><span class="p">)</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">positional</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">POSITIONAL_KINDS</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Positional encoding must be one of </span><span class="si">{</span><span class="n">POSITIONAL_KINDS</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding_init</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">INIT_STRATEGIES</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Embedding init must be one of </span><span class="si">{</span><span class="n">INIT_STRATEGIES</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"Dropout must be in [0, 1)."</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">use_bundled</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_input</span><span class="p">):</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"Select at least one text source (bundled corpus or files from input/)."</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">gpt_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vocab_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GPTConfig</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Architecture config for a given vocabulary size."""</span>
+        <span class="k">return</span> <span class="n">GPTConfig</span><span class="p">(</span>
+            <span class="n">vocab_size</span><span class="o">=</span><span class="n">vocab_size</span><span class="p">,</span>
+            <span class="n">d_model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">d_model</span><span class="p">,</span>
+            <span class="n">n_heads</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_heads</span><span class="p">,</span>
+            <span class="n">n_layers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_layers</span><span class="p">,</span>
+            <span class="n">max_seq_len</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_seq_len</span><span class="p">,</span>
+            <span class="n">dropout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">,</span>
+            <span class="n">ffn_mult</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ffn_mult</span><span class="p">,</span>
+            <span class="n">activation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">activation</span><span class="p">,</span>
+            <span class="n">positional</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">positional</span><span class="p">,</span>
+            <span class="n">embedding_init</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">embedding_init</span><span class="p">,</span>
+            <span class="n">tie_weights</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tie_weights</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">asdict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</code></pre></div>
+</figure>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Valid values</th>
+<th>Becomes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tokenizer</code></td>
+<td><code>char</code></td>
+<td><code>char</code>, <code>bpe</code></td>
+<td>tokenizer kind</td>
+</tr>
+<tr>
+<td><code>bpe_merges</code></td>
+<td>100</td>
+<td>0 to <code>MAX_BPE_MERGES</code> (2000); the slider stops at 500</td>
+<td>BPE merges</td>
+</tr>
+<tr>
+<td><code>use_bundled</code></td>
+<td><code>True</code></td>
+<td>bool</td>
+<td>include <code>data/sample_corpus.txt</code></td>
+</tr>
+<tr>
+<td><code>use_input</code></td>
+<td><code>True</code></td>
+<td>bool</td>
+<td>include files from <code>INPUT_DIR</code></td>
+</tr>
+<tr>
+<td><code>d_model</code></td>
+<td>64</td>
+<td>positive, divisible by <code>n_heads</code></td>
+<td><code>GPTConfig.d_model</code></td>
+</tr>
+<tr>
+<td><code>n_heads</code></td>
+<td>4</td>
+<td>positive</td>
+<td><code>GPTConfig.n_heads</code></td>
+</tr>
+<tr>
+<td><code>n_layers</code></td>
+<td>2</td>
+<td>positive</td>
+<td><code>GPTConfig.n_layers</code></td>
+</tr>
+<tr>
+<td><code>max_seq_len</code></td>
+<td>64</td>
+<td>positive</td>
+<td>context window</td>
+</tr>
+<tr>
+<td><code>ffn_mult</code></td>
+<td>4</td>
+<td>positive</td>
+<td>FFN hidden multiplier</td>
+</tr>
+<tr>
+<td><code>activation</code></td>
+<td><code>gelu</code></td>
+<td><code>gelu</code>, <code>relu</code></td>
+<td>FFN activation</td>
+</tr>
+<tr>
+<td><code>positional</code></td>
+<td><code>sinusoidal</code></td>
+<td><code>sinusoidal</code>, <code>learned</code></td>
+<td>position encoding</td>
+</tr>
+<tr>
+<td><code>embedding_init</code></td>
+<td><code>normal</code></td>
+<td><code>normal</code>, <code>uniform</code>, <code>xavier</code></td>
+<td>token table init</td>
+</tr>
+<tr>
+<td><code>dropout</code></td>
+<td>0.0</td>
+<td>[0, 1)</td>
+<td>dropout probability</td>
+</tr>
+<tr>
+<td><code>tie_weights</code></td>
+<td><code>True</code></td>
+<td>bool</td>
+<td>share embedding and head</td>
+</tr>
+<tr>
+<td><code>seed</code></td>
+<td><code>DEFAULT_SEED</code> (42)</td>
+<td>any int</td>
+<td>seed of <code>torch.manual_seed</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>problems()</code> returns a list of readable messages, so several errors are reported at once. <code>gpt_config(vocab_size)</code> builds the <code>GPTConfig</code>; the vocabulary size is known only after the tokenizer exists.</p>
+<h2 id="session-state">Session state</h2>
+<figure class="source"><figcaption>ui/state.py, lines 122-128: ui.state.init_state</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">init_state</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">MutableMapping</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Create missing keys (idempotent: existing values are never overwritten)."""</span>
+    <span class="k">if</span> <span class="s2">"settings"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">state</span><span class="p">:</span>
+        <span class="n">state</span><span class="p">[</span><span class="s2">"settings"</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_settings</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">_STATE_DEFAULTS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">state</span><span class="p">:</span>
+            <span class="n">state</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+</code></pre></div>
+</figure>
+<figure class="flow"><figcaption>Keys of st.session_state</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>settings        ModelSettings (frozen)
+model           GPT | None
+tokenizer       CharTokenizer | BPETokenizer | None
+history         list[dict]                  metrics of the trainer, one per step
+train_cfg       TrainConfig | None
+optimizer       torch.optim.Optimizer | None   alive only inside the session
+model_source    &quot;none&quot; | &quot;fresh&quot; | &quot;trained&quot; | &quot;checkpoint&quot;
+stop_requested  bool                        polled by the trainer between steps
+training        bool                        True while a run is in progress
+last_error      str | None</code></pre></figure>
+<p>Defaults are <code>copy.deepcopy</code>'d so two sessions never share the history list.</p>
+<figure class="flow"><figcaption>Transitions of model_source</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>none ──ensure_model──▶ fresh
+fresh | trained | checkpoint ──Apply (apply_settings)──▶ fresh      history, optimizer, train_cfg reset
+fresh | checkpoint ──run_training yields ≥ 1 step──▶ trained
+any ──load_into_state (adopt_checkpoint)──▶ checkpoint              optimizer = None</code></pre></figure>
+<h2 id="building-the-model">Building the model</h2>
+<figure class="source"><figcaption>ui/state.py, lines 151-162: ui.state.build_model</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build_model</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="n">ModelSettings</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Validate ``settings`` and return a freshly initialised ``(model, tokenizer)``.</span>
+
+<span class="sd">    Raises ``ValueError`` with a readable message for any invalid combination.</span>
+<span class="sd">    """</span>
+    <span class="n">problems</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">problems</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">problems</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">problems</span><span class="p">))</span>
+    <span class="n">tokenizer</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">make_tokenizer</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span>
+    <span class="n">cfg</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">gpt_config</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">vocab_size</span><span class="p">)</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>  <span class="c1"># same seed -&gt; same initial weights</span>
+    <span class="k">return</span> <span class="n">GPT</span><span class="p">(</span><span class="n">cfg</span><span class="p">),</span> <span class="n">tokenizer</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>ui/state.py, lines 165-187: ui.state.apply_settings</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">apply_settings</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">MutableMapping</span><span class="p">,</span> <span class="n">settings</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ModelSettings</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Rebuild tokenizer and model from ``settings`` and reset training progress.</span>
+
+<span class="sd">    Returns ``None`` on success or an error message (the old model is kept).</span>
+<span class="sd">    """</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="n">settings</span> <span class="k">if</span> <span class="n">settings</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">state</span><span class="p">[</span><span class="s2">"settings"</span><span class="p">]</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">model</span><span class="p">,</span> <span class="n">tokenizer</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="n">state</span><span class="p">[</span><span class="s2">"last_error"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+        <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span>
+        <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+        <span class="n">tokenizer</span><span class="o">=</span><span class="n">tokenizer</span><span class="p">,</span>
+        <span class="n">history</span><span class="o">=</span><span class="p">[],</span>
+        <span class="n">train_cfg</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_source</span><span class="o">=</span><span class="s2">"fresh"</span><span class="p">,</span>
+        <span class="n">stop_requested</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">last_error</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+</code></pre></div>
+</figure>
+<p><code>apply_settings</code> replaces <code>settings</code>, <code>model</code>, <code>tokenizer</code>, <code>history</code>, <code>train_cfg</code>, <code>optimizer</code>, <code>model_source</code>, <code>stop_requested</code> and <code>last_error</code> in a single <code>state.update(...)</code>. On failure it only stores <code>last_error</code> and returns the message; the previous model stays in place.</p>
+<figure class="source"><figcaption>ui/state.py, lines 217-230: ui.state.adopt_checkpoint</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">adopt_checkpoint</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">MutableMapping</span><span class="p">,</span> <span class="n">ckpt</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Make a loaded checkpoint (see ``training.checkpoint.load_checkpoint``) the current model."""</span>
+    <span class="n">model</span><span class="p">,</span> <span class="n">tokenizer</span> <span class="o">=</span> <span class="n">ckpt</span><span class="p">[</span><span class="s2">"model"</span><span class="p">],</span> <span class="n">ckpt</span><span class="p">[</span><span class="s2">"tokenizer"</span><span class="p">]</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+        <span class="n">settings</span><span class="o">=</span><span class="n">settings_from_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">state</span><span class="p">[</span><span class="s2">"settings"</span><span class="p">]),</span>
+        <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+        <span class="n">tokenizer</span><span class="o">=</span><span class="n">tokenizer</span><span class="p">,</span>
+        <span class="n">history</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">ckpt</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"history"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]),</span>
+        <span class="n">train_cfg</span><span class="o">=</span><span class="n">ckpt</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"train_config"</span><span class="p">),</span>
+        <span class="n">optimizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_source</span><span class="o">=</span><span class="s2">"checkpoint"</span><span class="p">,</span>
+        <span class="n">stop_requested</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">last_error</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div>
+</figure>
+<p><code>_cached_tokenizer</code> is an <code>lru_cache(maxsize=8)</code> keyed by <code>(kind, corpus text, merges)</code>, so a rerun that does not change the corpus or the merge count does not retrain the BPE tokenizer. The seed is applied with <code>torch.manual_seed(settings.seed)</code> immediately before the <code>GPT</code> is created, so equal settings give equal initial weights.</p>
+<h2 id="the-sidebar">The sidebar</h2>
+<figure class="source"><figcaption>ui/sidebar.py, lines 74-102: ui.sidebar.render_sidebar</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">render_sidebar</span><span class="p">(</span><span class="n">state</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Draw the sidebar: live model facts, then the settings form."""</span>
+    <span class="k">with</span> <span class="n">st</span><span class="o">.</span><span class="n">sidebar</span><span class="p">:</span>
+        <span class="n">st</span><span class="o">.</span><span class="n">header</span><span class="p">(</span><span class="s2">"Model"</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"model"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">c1</span><span class="p">,</span> <span class="n">c2</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">columns</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">c1</span><span class="o">.</span><span class="n">metric</span><span class="p">(</span><span class="s2">"Parameters"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">num_parameters</span><span class="p">()</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">c2</span><span class="o">.</span><span class="n">metric</span><span class="p">(</span><span class="s2">"Vocabulary"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">state</span><span class="p">[</span><span class="s1">'tokenizer'</span><span class="p">]</span><span class="o">.</span><span class="n">vocab_size</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">st</span><span class="o">.</span><span class="n">caption</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Device: </span><span class="si">{</span><span class="n">get_device</span><span class="p">(</span><span class="n">state</span><span class="p">)</span><span class="si">}</span><span class="s2"> - weights are </span><span class="si">{</span><span class="n">SOURCE_LABELS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s1">'model_source'</span><span class="p">],</span><span class="w"> </span><span class="s1">''</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"training"</span><span class="p">):</span>
+            <span class="n">st</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"Training is running; apply settings after it stops."</span><span class="p">)</span>
+
+        <span class="n">submitted</span><span class="p">,</span> <span class="n">settings</span> <span class="o">=</span> <span class="n">settings_form</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s2">"settings"</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">submitted</span><span class="p">:</span>
+            <span class="n">problems</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">problems</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">problems</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">problem</span> <span class="ow">in</span> <span class="n">problems</span><span class="p">:</span>
+                    <span class="n">st</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">error</span> <span class="o">=</span> <span class="n">apply_settings</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">settings</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">error</span><span class="p">:</span>
+                    <span class="n">st</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">st</span><span class="o">.</span><span class="n">success</span><span class="p">(</span><span class="s2">"Model re-initialised. Earlier training was discarded."</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">state</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"last_error"</span><span class="p">):</span>
+            <span class="n">st</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s2">"last_error"</span><span class="p">])</span>
+</code></pre></div>
+</figure>
+<p>The settings live in an <code>st.form</code> named <code>model_settings</code>. Widget values are read only when the user presses <strong>Apply and re-initialise</strong>, which avoids rebuilding the model on every change.</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Widgets (keys)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Data and tokenizer</td>
+<td><code>cfg_bundled</code>, <code>cfg_input</code> (with the number of files found), <code>cfg_tokenizer</code>, <code>cfg_merges</code></td>
+</tr>
+<tr>
+<td>Architecture</td>
+<td><code>cfg_d_model</code> 4 to 512, <code>cfg_heads</code> 1 to 32, <code>cfg_layers</code> 1 to 12, <code>cfg_ctx</code> 4 to 512, <code>cfg_ffn</code> 1 to 8, <code>cfg_act</code>, <code>cfg_pos</code>, <code>cfg_init</code>, <code>cfg_dropout</code> 0 to 0.5, <code>cfg_tie</code>, <code>cfg_seed</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>While <code>state["training"]</code> is true the sidebar shows a warning that settings should be applied only after the run ends.</p>
+<h2 id="the-training-page-and-the-lab-helpers">The training page and the lab helpers</h2>
+<figure class="source"><figcaption>ui/lab.py, lines 58-88: ui.lab.run_training</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run_training</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">MutableMapping</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">TrainConfig</span><span class="p">,</span> <span class="n">resume</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Train ``state['model']`` and append every metrics dict to ``state['history']``.</span>
+
+<span class="sd">    Honors ``state['stop_requested']`` between steps. On ``resume`` the existing</span>
+<span class="sd">    optimizer (and step counter) are reused. Errors from the trainer</span>
+<span class="sd">    (``FloatingPointError``, ``ValueError``) propagate to the caller.</span>
+<span class="sd">    """</span>
+    <span class="n">model</span><span class="p">,</span> <span class="n">device</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s2">"model"</span><span class="p">],</span> <span class="n">get_device</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+    <span class="n">train_data</span><span class="p">,</span> <span class="n">val_data</span> <span class="o">=</span> <span class="n">prepare_data</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+    <span class="n">start_step</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s2">"history"</span><span class="p">])</span> <span class="k">if</span> <span class="n">resume</span> <span class="k">else</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">resume</span><span class="p">:</span>
+        <span class="n">state</span><span class="p">[</span><span class="s2">"history"</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">state</span><span class="p">[</span><span class="s2">"optimizer"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">optimizer</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"optimizer"</span><span class="p">)</span> <span class="k">if</span> <span class="n">resume</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">optimizer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>  <span class="c1"># parameters must be on the device before the optimizer sees them</span>
+        <span class="n">optimizer</span> <span class="o">=</span> <span class="n">build_optimizer</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">cfg</span><span class="o">.</span><span class="n">lr</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">weight_decay</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">momentum</span><span class="p">)</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">train_cfg</span><span class="o">=</span><span class="n">cfg</span><span class="p">,</span> <span class="n">stop_requested</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">metrics</span> <span class="ow">in</span> <span class="n">train</span><span class="p">(</span>
+            <span class="n">model</span><span class="p">,</span> <span class="n">train_data</span><span class="p">,</span> <span class="n">val_data</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span>
+            <span class="n">should_stop</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="nb">bool</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"stop_requested"</span><span class="p">)),</span>
+            <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">start_step</span><span class="o">=</span><span class="n">start_step</span><span class="p">,</span>
+        <span class="p">):</span>
+            <span class="n">state</span><span class="p">[</span><span class="s2">"history"</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metrics</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">metrics</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">state</span><span class="p">[</span><span class="s2">"training"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">state</span><span class="p">[</span><span class="s2">"history"</span><span class="p">]:</span>
+            <span class="n">state</span><span class="p">[</span><span class="s2">"model_source"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"trained"</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>ui/lab.py, lines 22-41: ui.lab.prepare_data</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">prepare_data</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">MutableMapping</span><span class="p">,</span> <span class="n">val_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">"""Encode the selected corpus and split it into train / validation tensors.</span>
+
+<span class="sd">    Raises ``ValueError`` with a clear message if there is too little text for</span>
+<span class="sd">    the model's context window.</span>
+<span class="sd">    """</span>
+    <span class="n">corpus</span> <span class="o">=</span> <span class="n">load_corpus</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s2">"settings"</span><span class="p">])</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">encode_corpus</span><span class="p">(</span><span class="n">corpus</span><span class="p">,</span> <span class="n">state</span><span class="p">[</span><span class="s2">"tokenizer"</span><span class="p">])</span>
+    <span class="n">block</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s2">"model"</span><span class="p">]</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">max_seq_len</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">block</span> <span class="o">+</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"The text has only </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="si">}</span><span class="s2"> tokens, fewer than the context window (</span><span class="si">{</span><span class="n">block</span><span class="si">}</span><span class="s2">) + 2. "</span>
+            <span class="s2">"Add text to input/, use a character tokenizer, or reduce the context window."</span>
+        <span class="p">)</span>
+    <span class="n">train_data</span><span class="p">,</span> <span class="n">val_data</span> <span class="o">=</span> <span class="n">train_val_split</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">val_fraction</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">MIN_VAL_TOKENS</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="kc">None</span>  <span class="c1"># too small to validate on: train on everything</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">block</span> <span class="o">+</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">train_data</span><span class="p">,</span> <span class="n">val_data</span>
+</code></pre></div>
+</figure>
+<figure class="flow"><figcaption>pages/page_training.py control flow</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>widgets -&gt; TrainConfig(...)  ValueError -&gt; st.error + st.stop
+        |
+        v
+check_train_config   window &gt; context -&gt; error, Start and Resume disabled
+        |
+ Start / Resume pressed?
+   yes: stop_requested = False
+        for metrics in lab.run_training(state, cfg, resume):
+            every N steps (default 5) or on the last step: status.update + draw(history, live=True)
+        FloatingPointError -&gt; &quot;Training diverged&quot;     ValueError -&gt; message
+   no : history present -&gt; draw(history, live=False)     else -&gt; empty_state
+        |
+        v
+checkpoints: Save (needs history), pick and Load (rerun on success)</code></pre></figure>
+<p>The Resume button is enabled only when <code>state["history"]</code> is non-empty <strong>and</strong> <code>state["optimizer"]</code> is not <code>None</code>. A checkpoint load sets the optimiser to <code>None</code>, so Resume is unavailable after loading a file.</p>
+<h3 id="unique-chart-keys">Unique chart keys</h3>
+<div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="n">frame</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>                       <span class="c1"># counts redraws within one script run</span>
+<span class="n">suffix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"_</span><span class="si">{</span><span class="n">frame</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">live</span> <span class="k">else</span> <span class="s2">""</span>
+<span class="n">plot</span><span class="p">(</span><span class="n">loss_figure</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="s2">"tr_loss"</span> <span class="o">+</span> <span class="n">suffix</span><span class="p">)</span>
+</code></pre></div>
+
+<p>A key may not repeat within a run. Redrawing the same chart many times while streaming therefore needs a new key per frame.</p>
+<h2 id="the-demonstration-helpers">The demonstration helpers</h2>
+<p><code>ui/demo.py</code> is Streamlit-free and returns plain data to the pages:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Used by</th>
+<th>Returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tokenize_text</code>, <code>replay_merges</code>, <code>compression_counts</code></td>
+<td>tokenization</td>
+<td>tokens, ids, merge replay, token counts per merge budget</td>
+</tr>
+<tr>
+<td><code>embedding_demo</code>, <code>positional_demo</code>, <code>embed_with_position</code></td>
+<td>embeddings, positional</td>
+<td>vectors and tables from fresh layers</td>
+</tr>
+<tr>
+<td><code>attention_demo</code></td>
+<td>attention, multihead</td>
+<td>internals of one untrained attention layer</td>
+</tr>
+<tr>
+<td><code>layernorm_demo</code>, <code>ffn_demo</code></td>
+<td>norm and FFN</td>
+<td>before and after tensors</td>
+</tr>
+<tr>
+<td><code>model_forward</code>, <code>top_next_tokens</code></td>
+<td>transformer, inference</td>
+<td>logits, details and the most likely next tokens</td>
+</tr>
+<tr>
+<td><code>generate_text</code>, <code>step_probabilities</code></td>
+<td>inference</td>
+<td>sampled text and per-position probabilities</td>
+</tr>
+<tr>
+<td><code>parameter_summary</code></td>
+<td>transformer</td>
+<td>parameter breakdown</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>model_forward</code> switches to <code>eval()</code> and <code>no_grad</code>, and restores the previous mode in a <code>finally</code> block. <code>generate_text</code> starts from token id 1 when the prompt encodes to nothing.</p>
+<h2 id="environment-variables">Environment variables</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Read by</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>APP_PORT</code></td>
+<td><code>config.load_settings</code>, <code>scripts/start.sh</code></td>
+<td>port of the server (8601 by default; 5000 is rejected)</td>
+</tr>
+<tr>
+<td><code>APP_HOST</code></td>
+<td><code>scripts/start.sh</code></td>
+<td>bind address, <code>localhost</code> by default</td>
+</tr>
+<tr>
+<td><code>APP_START_CMD</code></td>
+<td><code>scripts/start.sh</code></td>
+<td>the command that is run to start Streamlit</td>
+</tr>
+<tr>
+<td><code>DEVICE</code></td>
+<td><code>config.resolve_device</code></td>
+<td><code>auto</code>, <code>cpu</code>, <code>mps</code> or <code>cuda</code>; an unavailable choice falls back to CPU</td>
+</tr>
+<tr>
+<td><code>DEFAULT_SEED</code></td>
+<td><code>ui.state.default_settings</code></td>
+<td>initial seed in the sidebar</td>
+</tr>
+<tr>
+<td><code>INPUT_DIR</code>, <code>OUTPUT_DIR</code></td>
+<td>data and checkpoint modules</td>
+<td>folders for extra text and for checkpoints</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="runtime-behaviour">Runtime behaviour</h2>
+<ul>
+<li>Each rerun executes <code>app.py</code> and then the selected page, so state that must persist is in <code>st.session_state</code> only.</li>
+<li>The model is built once per session and rebuilt only after <strong>Apply</strong>.</li>
+<li>The device comes from <code>config.resolve_device</code>: CUDA, then MPS, then CPU for <code>auto</code>.</li>
+<li>A failure to build the model does not crash a page: <code>init_page</code> shows the error and an instruction, then calls <code>st.stop()</code>.</li>
+<li>A training run occupies the session until it ends or Stop is pressed.</li>
+</ul>
+<h2 id="tests">Tests</h2>
+<p><code>conftest.py</code> redirects <code>OUTPUT_DIR</code> and <code>INPUT_DIR</code> to temporary folders for every test, so tests never write to <code>output/</code> nor read real input files. The <code>run_page</code> fixture runs <code>pages/page_&lt;name&gt;.py</code> with <code>AppTest</code>, optionally with prepared settings. <code>assert_clean</code> fails on any exception or error banner. The state and lab tests use plain dictionaries. <code>test_app.py</code> runs the complete app, clicks <strong>Apply</strong> after changing widgets and checks both the success path and that invalid settings keep the old model. <code>test_page_training.py</code> covers a run that fills the history, loss reduction, resume, a window longer than the context, a diverging run that shows a message instead of crashing, every optimiser, the constant schedule, too little text, and checkpoint save, load and corruption.</p>
+<h2 id="common-pitfalls">Common pitfalls</h2>
+<ul>
+<li><strong>Storing a value in a local variable and expecting it on the next rerun.</strong> Use <code>st.session_state</code>.</li>
+<li><strong>Two charts with one key.</strong> Streamlit raises a duplicate-element error.</li>
+<li><strong>Changing settings during a run.</strong> The sidebar warns; apply them after the run ends.</li>
+<li><strong>Port 5000.</strong> Reserved by AirDrop on macOS; the configuration rejects it.</li>
+<li><strong>Expecting Resume after loading a checkpoint.</strong> The optimiser is not restored from a file.</li>
+</ul>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>

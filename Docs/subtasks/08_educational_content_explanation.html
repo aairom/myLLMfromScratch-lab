@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>8. Educational content as data – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 8 of 10 · Scientific explanation</p>
+<h1>8. Educational content as data</h1>
+<p class="lede">Lessons as data, LaTeX formulas and code snippets read live from the running source.</p>
+<ul class="badges" aria-label="Key facts"><li>1,630 words</li><li>11 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="08_educational_content_explanation.html" aria-current="page">Explanation</a><a href="08_educational_content_implementation_guide.html">Implementation guide</a><a href="07_visualization_explanation.html">← 7. Visualization layer</a><a href="09_streamlit_app_explanation.html">9. Streamlit application and learning pages →</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#abstract">Abstract</a></li><li><a href="#learning-science-background">Learning-science background</a><ul><li><a href="#cognitive-load-and-worked-examples">Cognitive load and worked examples</a></li><li><a href="#dual-coding-and-multimedia-learning">Dual coding and multimedia learning</a></li><li><a href="#three-representations-of-one-idea">Three representations of one idea</a></li><li><a href="#anticipating-misconceptions">Anticipating misconceptions</a></li></ul></li><li><a href="#the-lesson-record">The lesson record</a><ul><li><a href="#why-immutability">Why immutability</a></li></ul></li><li><a href="#code-that-cannot-go-stale">Code that cannot go stale</a><ul><li><a href="#error-handling-as-a-teaching-feature">Error handling as a teaching feature</a></li></ul></li><li><a href="#mathematics-for-the-web">Mathematics for the web</a></li><li><a href="#presentation-three-tabs">Presentation: three tabs</a></li><li><a href="#worked-sampling-example-why-the-lesson-contains-numbers">Worked sampling example: why the lesson contains numbers</a></li><li><a href="#evaluation-of-the-design">Evaluation of the design</a></li><li><a href="#limitations">Limitations</a></li><li><a href="#where-to-go-next">Where to go next</a></li><li><a href="#references">References</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_explanation.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_explanation.html">Tokenization</a></li><li><a href="03_embeddings_positional_explanation.html">Embeddings and positional encoding</a></li><li><a href="04_attention_layers_explanation.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_explanation.html">Full transformer (GPT) and generation</a></li><li><a href="06_training_pipeline_explanation.html">Training pipeline</a></li><li><a href="07_visualization_explanation.html">Visualization layer</a></li><li aria-current="step"><a href="08_educational_content_explanation.html">Educational content layer</a></li><li><a href="09_streamlit_app_explanation.html">Streamlit application and learning pages</a></li><li><a href="10_scripts_docs_compliance_explanation.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="abstract">Abstract</h2>
+<p>The application teaches by showing three things side by side: an intuitive explanation, the mathematics, and the code that actually runs. This sub-task is the layer that stores that material. The central design decision is that <strong>a lesson is data, not interface code</strong>: thirteen immutable <code>Lesson</code> records hold the text, the formulas, the tensor shapes, the common mistakes and the <em>names</em> of the source symbols to display. The code itself is never copied into the lesson; it is read from the running modules at display time. This document explains the learning-science reasoning behind that structure, how the three representations support each other, and what guarantees the design gives (and does not give).</p>
+<h2 id="learning-science-background">Learning-science background</h2>
+<p>Four findings from cognitive psychology shaped the layout of every lesson.</p>
+<h3 id="cognitive-load-and-worked-examples">Cognitive load and worked examples</h3>
+<p>Working memory can hold only a few new elements at once. Sweller (1988) argued that instruction should keep the <em>extraneous</em> load (effort spent on the format rather than the idea) small, so that the learner's capacity is spent on the idea itself. A closely related result is the <strong>worked-example effect</strong>: a novice learns a procedure faster from studying a solved example than from solving the same problem unaided (Sweller and Cooper, 1985). Each lesson therefore contains an ordered list of short <em>steps</em>, one sentence each, that walks through the computation like a solved example. The default lessons have between 3 and 6 steps, 57 in total.</p>
+<h3 id="dual-coding-and-multimedia-learning">Dual coding and multimedia learning</h3>
+<p>Paivio (1971) proposed that verbal and visual information are processed in two partly independent channels, so a concept presented in both is remembered better. Mayer (2009) turned this into practical principles: put the picture and the words that describe it close together (<em>spatial contiguity</em>), and avoid decoration that does not carry meaning (<em>coherence</em>). The lesson tabs (Explain, Math, Code) sit directly above the interactive figure of the same page, and every figure carries a title that states what it shows.</p>
+<h3 id="three-representations-of-one-idea">Three representations of one idea</h3>
+<p>A concept such as attention is more robust in memory when the learner meets it as prose, as an equation and as a program, and can move between them. The lesson layer is organised around exactly this triple:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Representation</th>
+<th>Field of a lesson</th>
+<th>Question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Intuition</td>
+<td><code>intuition</code>, <code>steps</code></td>
+<td>what is the idea, and in which order does it happen</td>
+</tr>
+<tr>
+<td>Mathematics</td>
+<td><code>formulas</code>, <code>shapes</code></td>
+<td>what is the exact relation, and what dimensions do the tensors have</td>
+</tr>
+<tr>
+<td>Code</td>
+<td><code>snippets</code></td>
+<td>how is it written, so that I can run and change it</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="anticipating-misconceptions">Anticipating misconceptions</h3>
+<p>Beginners hold systematic misconceptions, and naming them is more effective than hoping they do not arise. Each lesson has a <code>pitfalls</code> list. Examples are "characters not seen while building the vocabulary become <code>&lt;unk&gt;</code> and cannot be recovered on decode" for tokenization and "forgetting the mask in a language model leaks the future and gives deceptively low loss" for attention. There are 24 pitfalls in total, and every lesson has at least one.</p>
+<h2 id="the-lesson-record">The lesson record</h2>
+<p>A lesson is a frozen dataclass with these fields:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td>string</td>
+<td>stable identifier used by pages, such as <code>attention</code></td>
+</tr>
+<tr>
+<td><code>title</code>, <code>summary</code></td>
+<td>string</td>
+<td>page title and the one-line description shown on the home page</td>
+</tr>
+<tr>
+<td><code>intuition</code></td>
+<td>Markdown string</td>
+<td>the explanation in plain language</td>
+</tr>
+<tr>
+<td><code>steps</code></td>
+<td>tuple of strings</td>
+<td>the worked walkthrough</td>
+</tr>
+<tr>
+<td><code>formulas</code></td>
+<td>tuple of <code>Formula</code></td>
+<td>LaTeX expression plus a plain-language reading of it</td>
+</tr>
+<tr>
+<td><code>shapes</code></td>
+<td>tuple of triples</td>
+<td>tensor name, shape and meaning</td>
+</tr>
+<tr>
+<td><code>pitfalls</code></td>
+<td>tuple of strings</td>
+<td>typical mistakes</td>
+</tr>
+<tr>
+<td><code>snippets</code></td>
+<td>tuple of dotted paths</td>
+<td>symbols whose source is displayed</td>
+</tr>
+<tr>
+<td><code>related</code></td>
+<td>tuple of keys</td>
+<td>other lessons to visit next</td>
+</tr>
+</tbody>
+</table></div>
+<p>The 13 lessons appear in teaching order: tokenization, embeddings, positional encoding, attention, multi-head attention, layer normalisation, feed-forward network, residual connections, the full model, the loss, the optimiser, the learning-rate schedule and sampling. They hold 34 formulas in total, every one paired with a sentence that explains it in words, because an equation without a reading is a common obstacle for newcomers.</p>
+<h3 id="why-immutability">Why immutability</h3>
+<p>Frozen dataclasses and tuples (rather than lists) make a lesson a <em>value</em>: it can be shared between pages and sessions without a defensive copy, and a page cannot change the text that another page shows. It also makes the content easy to test, because the tests iterate over plain data.</p>
+<h2 id="code-that-cannot-go-stale">Code that cannot go stale</h2>
+<p>The classic failure of teaching material is <em>drift</em>: the text describes version 1 of the code while the repository holds version 3. Knuth (1984) proposed <strong>literate programming</strong> to keep prose and program together. This project uses a lighter variant of the same idea: the lesson stores only the <strong>dotted path</strong> of a symbol, for example <code>llm.attention.scaled_dot_product_attention</code>, and a small resolver finds and prints the live source.</p>
+<p>The resolver works in two steps:</p>
+<ol>
+<li>Import the <em>longest</em> prefix of the path that is a module (<code>llm.attention</code>, not <code>llm</code>).</li>
+<li>Look up the remaining parts as attributes (<code>scaled_dot_product_attention</code>, or <code>GPT.generate</code> for a method).</li>
+</ol>
+<p>The source is then obtained with Python's <code>inspect</code> module and dedented. Because the comments and the docstring are part of the source, <strong>the comments in the code are the line-by-line explanation</strong>: they are written once, next to the code they describe. The 13 lessons reference 26 symbols, which together are 638 lines of source.</p>
+<div class="admonition note">
+<p class="admonition-title">A guarantee and its limit</p>
+<p>The design guarantees that the displayed code is the executing code. It does not guarantee that the <em>prose</em> in the intuition is still correct after a refactor. That second property is protected by tests that check the structure of the content (every lesson has every section, every path resolves, the LaTeX braces balance, related keys exist) and by a rule for the author: change the lesson text in the same commit as the behaviour it describes.</p>
+</div>
+<h3 id="error-handling-as-a-teaching-feature">Error handling as a teaching feature</h3>
+<p>If a path stops resolving, the page must not fail: a lesson that cannot show a snippet still has an explanation and a formula. The code tab therefore catches the lookup error, shows a warning that names the missing symbol, and continues with the next snippet. A test asks the Code tab for an extra symbol that does not exist and checks that a warning appears while the page still renders.</p>
+<h2 id="mathematics-for-the-web">Mathematics for the web</h2>
+<p>Formulas are stored as LaTeX strings and drawn with Streamlit's KaTeX support. LaTeX is a standard that learners will meet again in papers, so showing it also teaches how to read and write it. A structural test counts opening and closing braces in every formula to catch typing errors before they reach a browser.</p>
+<h2 id="presentation-three-tabs">Presentation: three tabs</h2>
+<p>The Explain tab shows the intuition, the numbered steps and a collapsed list of pitfalls. The Math tab shows each formula with its reading, then a table of tensor shapes. The Code tab shows each snippet in an expander, the first one open. The same three tabs appear on every page that shows a lesson (ten of the thirteen lessons are shown in full; the residual, loss and schedule lessons are summarised on the home page and covered by the model and training pages), so the learner builds one interaction habit and spends no effort on navigation (Sweller's extraneous load again).</p>
+<div class="admonition note">
+<p class="admonition-title">Progressive disclosure</p>
+<p>Pitfalls are collapsed and the second and later snippets are folded away. The page starts with the least material that is still complete, and the learner opens more on demand (Nielsen, 2006).</p>
+</div>
+<h2 id="worked-sampling-example-why-the-lesson-contains-numbers">Worked sampling example: why the lesson contains numbers</h2>
+<p>Abstract statements about temperature are hard to retain. The sampling lesson therefore pairs the formula</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>&#x0003D;</mo><mfrac><mrow><mi>exp</mi><mo stretchy="false">&#x00028;</mo><msub><mi>z</mi><mi>i</mi></msub><mo>&#x0002F;</mo><mi>&#x003C4;</mi><mo stretchy="false">&#x00029;</mo></mrow><mrow><msub><mo>&#x02211;</mo><mi>j</mi></msub><mi>exp</mi><mo stretchy="false">&#x00028;</mo><msub><mi>z</mi><mi>j</mi></msub><mo>&#x0002F;</mo><mi>&#x003C4;</mi><mo stretchy="false">&#x00029;</mo></mrow></mfrac></mrow></math></div>
+<p>with the interactive page, and this documentation gives one concrete case. For the logits <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">&#x00028;</mo><mn>2</mn><mo>&#x0002C;</mo><mn>1</mn><mo>&#x0002C;</mo><mn>0.1</mn><mo stretchy="false">&#x00029;</mo></mrow></math> the probabilities are about <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">&#x00028;</mo><mn>0.659</mn><mo>&#x0002C;</mo><mn>0.242</mn><mo>&#x0002C;</mo><mn>0.099</mn><mo stretchy="false">&#x00029;</mo></mrow></math> at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C4;</mi><mo>&#x0003D;</mo><mn>1</mn></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">&#x00028;</mo><mn>0.864</mn><mo>&#x0002C;</mo><mn>0.117</mn><mo>&#x0002C;</mo><mn>0.019</mn><mo stretchy="false">&#x00029;</mo></mrow></math> at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C4;</mi><mo>&#x0003D;</mo><mn>0.5</mn></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">&#x00028;</mo><mn>0.502</mn><mo>&#x0002C;</mo><mn>0.304</mn><mo>&#x0002C;</mo><mn>0.194</mn><mo stretchy="false">&#x00029;</mo></mrow></math> at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C4;</mi><mo>&#x0003D;</mo><mn>2</mn></mrow></math>. Seeing the same three numbers sharpen and flatten teaches the role of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C4;</mi></mrow></math> faster than the equation alone.</p>
+<h2 id="evaluation-of-the-design">Evaluation of the design</h2>
+<p>The content layer was checked in four ways:</p>
+<ol>
+<li><strong>Completeness</strong>, by tests: all 13 keys exist in teaching order; every lesson has a title, a summary, a long enough intuition, at least three steps, at least one formula, one shape row, one pitfall and one snippet.</li>
+<li><strong>Resolvability</strong>, by tests: every one of the 26 snippet paths returns non-empty source.</li>
+<li><strong>Consistency</strong>, by tests: related keys exist and never point to the lesson itself; LaTeX braces balance.</li>
+<li><strong>Rendering</strong>, by interface tests: every lesson renders its three tabs without an exception.</li>
+</ol>
+<p>There is <strong>no measurement of learning outcomes</strong> in this project. Whether the lessons are effective for a given audience would require a study with real learners (pre and post tests), which is outside the scope.</p>
+<h2 id="limitations">Limitations</h2>
+<ol>
+<li><strong>Prose can drift.</strong> See above: only the code is guaranteed current.</li>
+<li><strong>English only.</strong> The text lives in Python tuples; supporting another language would call for a message catalogue.</li>
+<li><strong>No prerequisite graph.</strong> <code>related</code> is a list of suggestions, not an enforced order.</li>
+<li><strong>Static text.</strong> Lessons do not adapt to what the learner has already done in the session.</li>
+</ol>
+<h2 id="where-to-go-next">Where to go next</h2>
+<p>The charts and diagrams that accompany each lesson are described in the <a href="07_visualization_explanation.html">visualisation document</a>. The <a href="09_streamlit_app_explanation.html">Streamlit application</a> shows how the three tabs are placed on each page. The <a href="08_educational_content_implementation_guide.html">implementation guide</a> lists the record fields, the resolver and the tests.</p>
+<h2 id="references">References</h2>
+<ol>
+<li>Sweller, J. (1988). <em>Cognitive load during problem solving: effects on learning.</em> Cognitive Science 12(2).</li>
+<li>Sweller, J., Cooper, G. A. (1985). <em>The use of worked examples as a substitute for problem solving in learning algebra.</em> Cognition and Instruction 2(1).</li>
+<li>Paivio, A. (1971). <em>Imagery and Verbal Processes.</em> Holt, Rinehart and Winston.</li>
+<li>Mayer, R. E. (2009). <em>Multimedia Learning</em> (2nd ed.). Cambridge University Press.</li>
+<li>Knuth, D. E. (1984). <em>Literate Programming.</em> The Computer Journal 27(2).</li>
+<li>Nielsen, J. (2006). <em>Progressive Disclosure.</em> Nielsen Norman Group.</li>
+<li>Vaswani, A., et al. (2017). <em>Attention Is All You Need.</em> NeurIPS (the source of the formulas shown in the attention lessons).</li>
+</ol>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>
