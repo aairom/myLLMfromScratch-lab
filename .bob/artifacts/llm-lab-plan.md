@@ -215,7 +215,7 @@ Notes for resuming:
 5. Run `project-audit`; fix findings.
 6. Launch the app via `start.sh` and manually verify each page and a short training run, then stop it.
 **Relevant Context:** `.bob/skills/project-lifecycle-scripts/`, `.bob/skills/project-docs/`, `.bob/skills/test-gate/`, `.bob/skills/project-audit/`, `.bob/skills/secure-config/`.
-**Status:** [ ] pending
+**Status:** [x] done - scripts/ (start, stop, cleanup), .env.example, README + Docs/Quickstart + Docs/Architecture (MIT), browser check (300-step run, inference), secrets scan, gitignore check, test-gate (402 passed) and project-audit all pass.
 
 ## Open Items / Risks to Confirm During Implementation
 - License type for the project and the exact bundled corpus (must be public domain or permissively licensed; record attribution).

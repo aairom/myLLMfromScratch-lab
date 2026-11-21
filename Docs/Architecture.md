@@ -1,17 +1,112 @@
 # Architecture
 
+## Layers
+
 ```mermaid
 flowchart TD
     subgraph Input
         I[input/ folder, read recursively]
+        D[data/sample_corpus.txt]
+        E[.env settings]
     end
     subgraph App
-        P[Processing]
-        UI[Local UI]
+        A[app.py<br/>st.navigation, PAGES registry]
+        PG[pages/page_*.py<br/>ten Streamlit pages]
+        UI[ui/<br/>state, components, sidebar, lab, demo]
+        ED[edu/<br/>lessons, snippets]
+        VZ[viz/<br/>tokens, embeddings, attention, training]
+        LM[llm/<br/>tokenizer, embeddings, positional,<br/>attention, layers, transformer]
+        TR[training/<br/>data, optimizers, schedulers,<br/>trainer, checkpoint]
     end
     subgraph Output
-        R[output/ timestamped results]
+        R[output/ timestamped checkpoints]
     end
-    I --> P --> R
-    UI --> P
+    I --> UI
+    D --> UI
+    E --> A
+    A --> PG --> UI
+    UI --> ED
+    UI --> VZ
+    UI --> LM
+    UI --> TR
+    VZ --> LM
+    TR --> LM
+    TR --> R
 ```
+
+Dependency rule: arrows only point downwards. `llm/`, `training/` and `viz/`
+never import Streamlit, so they can be tested and read on their own.
+
+## The model (`llm/`)
+
+```mermaid
+flowchart LR
+    T[text] --> TK[Tokenizer<br/>char or BPE]
+    TK --> ID[token ids]
+    ID --> EM[Token embedding<br/>lookup table]
+    EM --> PE[+ positional encoding<br/>sinusoidal or learned]
+    PE --> B1
+    subgraph B1[Transformer block x N]
+        direction TB
+        LN1[LayerNorm] --> MHA[Causal multi-head<br/>self-attention]
+        MHA --> R1((+))
+        R1 --> LN2[LayerNorm] --> FF[Feed-forward<br/>Linear, GELU, Linear]
+        FF --> R2((+))
+    end
+    B1 --> LNF[Final LayerNorm]
+    LNF --> HD[LM head<br/>tied with embedding]
+    HD --> LG[logits]
+    LG --> SM[softmax, sampling]
+```
+
+Pre-norm residual blocks are used because they train stably without a long
+warm-up. Attention is computed as `softmax(Q K^T / sqrt(d_k) + causal mask) V`
+per head, then the heads are concatenated and projected.
+
+## Training loop (`training/`)
+
+```mermaid
+flowchart TD
+    C[corpus] --> TK[tokenize]
+    TK --> SP[train / validation split]
+    SP --> BT[random windows<br/>inputs x, targets x shifted by 1]
+    BT --> FW[forward pass]
+    FW --> LS[cross-entropy loss]
+    LS --> BW[backward: autograd gradients]
+    BW --> CL[clip global grad norm]
+    CL --> OP[optimizer step<br/>SGD / Adam / AdamW]
+    SCH[LR schedule<br/>constant or warm-up + cosine] --> OP
+    OP --> M[metrics: loss, lr, grad norm, tokens/s]
+    M --> LV[live Plotly charts]
+    OP --> BT
+    OP --> CK[checkpoint in output/]
+```
+
+## UI data flow
+
+```mermaid
+sequenceDiagram
+    participant S as Sidebar form
+    participant ST as st.session_state
+    participant P as Page
+    participant H as ui/demo.py and ui/lab.py
+    participant V as viz/
+    S->>ST: ModelSettings (validated)
+    ST->>ST: ensure_model builds tokenizer + GPT
+    P->>ST: read tokenizer, model, device
+    P->>H: call pure helper with inputs
+    H->>V: build figure from tensors
+    V-->>P: Plotly figure
+    P-->>P: st.plotly_chart with unique key
+```
+
+## Design decisions
+
+- **Hand-written components**: `nn.MultiheadAttention`, `nn.TransformerEncoder`
+  and `nn.LayerNorm` are used only inside tests as numerical references.
+- **Streamlit-free helpers**: page logic lives in `ui/demo.py` and
+  `ui/lab.py`, so it is covered by plain unit tests.
+- **One test module per source module**, plus `AppTest` runs of every page.
+- **Configuration only through `.env`**: host, port, device, seed and folders.
+- **Checkpoints** store model config, weights, optimizer state and history;
+  the sinusoidal table is a non-persistent buffer and is rebuilt on load.
