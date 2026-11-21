@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>6. Implementation guide: the training pipeline – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 6 of 10 · Implementation guide</p>
+<h1>6. Implementation guide: the training pipeline</h1>
+<p class="lede">Windowed data, backpropagation, hand-written Adam and SGD, learning-rate schedules, checkpoints.</p>
+<ul class="badges" aria-label="Key facts"><li>1,411 words</li><li>14 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="06_training_pipeline_explanation.html">Explanation</a><a href="06_training_pipeline_implementation_guide.html" aria-current="page">Implementation guide</a><a href="05_gpt_model_implementation_guide.html">← 5. Full transformer (GPT) and generation</a><a href="07_visualization_implementation_guide.html">7. Visualization layer →</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#role-in-the-project">Role in the project</a></li><li><a href="#module-map">Module map</a></li><li><a href="#data">Data</a></li><li><a href="#optimisers">Optimisers</a></li><li><a href="#learning-rate-schedules">Learning-rate schedules</a></li><li><a href="#configuration-object">Configuration object</a></li><li><a href="#gradient-clipping-and-evaluation">Gradient clipping and evaluation</a></li><li><a href="#the-training-loop">The training loop</a><ul><li><a href="#metrics-dictionary">Metrics dictionary</a></li><li><a href="#reference-run">Reference run</a></li></ul></li><li><a href="#checkpoints">Checkpoints</a></li><li><a href="#integration-points">Integration points</a></li><li><a href="#environment-variables">Environment variables</a></li><li><a href="#runtime-behaviour">Runtime behaviour</a></li><li><a href="#tests">Tests</a></li><li><a href="#common-pitfalls">Common pitfalls</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_implementation_guide.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_implementation_guide.html">Tokenization</a></li><li><a href="03_embeddings_positional_implementation_guide.html">Embeddings and positional encoding</a></li><li><a href="04_attention_layers_implementation_guide.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_implementation_guide.html">Full transformer (GPT) and generation</a></li><li aria-current="step"><a href="06_training_pipeline_implementation_guide.html">Training pipeline</a></li><li><a href="07_visualization_implementation_guide.html">Visualization layer</a></li><li><a href="08_educational_content_implementation_guide.html">Educational content layer</a></li><li><a href="09_streamlit_app_implementation_guide.html">Streamlit application and learning pages</a></li><li><a href="10_scripts_docs_compliance_implementation_guide.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="role-in-the-project">Role in the project</h2>
+<p>The <code>training/</code> package turns an untrained <code>GPT</code> into a trained one. It owns everything between "a string of text" and "weights that predict the next character": building the corpus, cutting it into windows, running the loop, updating parameters, scheduling the learning rate and persisting the result. The Streamlit pages never implement any of this themselves; they call <code>ui.lab</code> helpers that wrap the generator <code>training.trainer.train</code>.</p>
+<figure class="flow"><figcaption>One optimisation step (training.trainer.train)</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code> train_data (N,) ---&gt; get_batch ---&gt; x (B,T), y (B,T)
+                                        |
+ schedule(i) --&gt; group[&quot;lr&quot;]            v
+                                  model(x, y)  ----&gt; loss
+                                        |
+                       optimizer.zero_grad(set_to_none=True)
+                                        |
+                                  loss.backward()        autograd fills p.grad
+                                        |
+                       clip_grad_norm(params, grad_clip) -&gt; grad_norm (before clipping)
+                                        |
+                                  optimizer.step()       hand-written Adam / SGD
+                                        |
+              every eval_interval steps: estimate_loss(val_data)
+                                        |
+                                        v
+                   yield {step, train_loss, val_loss, lr, grad_norm, tokens_per_sec, elapsed, done}</code></pre></figure>
+<h2 id="module-map">Module map</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>File</th>
+<th>Lines</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>training/data.py</code></td>
+<td>113</td>
+<td><code>load_bundled_corpus</code>, <code>find_input_files</code>, <code>load_input_texts</code>, <code>build_corpus</code>, <code>encode_corpus</code>, <code>train_val_split</code>, <code>get_batch</code></td>
+</tr>
+<tr>
+<td><code>training/optimizers.py</code></td>
+<td>172</td>
+<td><code>SGD</code>, <code>Adam</code>, <code>build_optimizer</code>, <code>OPTIMIZER_NAMES</code></td>
+</tr>
+<tr>
+<td><code>training/schedulers.py</code></td>
+<td>68</td>
+<td><code>warmup_cosine_lr</code>, <code>constant_lr</code>, <code>build_schedule</code>, <code>SCHEDULE_NAMES</code></td>
+</tr>
+<tr>
+<td><code>training/trainer.py</code></td>
+<td>183</td>
+<td><code>TrainConfig</code>, <code>clip_grad_norm</code>, <code>estimate_loss</code>, <code>train</code></td>
+</tr>
+<tr>
+<td><code>training/checkpoint.py</code></td>
+<td>125</td>
+<td><code>CheckpointError</code>, <code>new_checkpoint_path</code>, <code>list_checkpoints</code>, <code>save_checkpoint</code>, <code>load_checkpoint</code></td>
+</tr>
+<tr>
+<td><code>ui/lab.py</code></td>
+<td></td>
+<td><code>prepare_data</code>, <code>run_training</code> and the stop and resume plumbing used by the training page</td>
+</tr>
+<tr>
+<td><code>pages/page_training.py</code></td>
+<td></td>
+<td>the training lab page</td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td></td>
+<td><code>test_trainer.py</code> 18, <code>test_optimizers.py</code> 15, <code>test_data.py</code> 11, <code>test_schedulers.py</code> 9, <code>test_checkpoint.py</code> 9, <code>test_training.py</code> 8</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="data">Data</h2>
+<figure class="source"><figcaption>training/data.py, lines 57-71: training.data.build_corpus</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build_corpus</span><span class="p">(</span>
+    <span class="n">use_bundled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">use_input</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">input_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Concatenate the selected sources, separated by a blank line."""</span>
+    <span class="n">parts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">use_bundled</span><span class="p">:</span>
+        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">load_bundled_corpus</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">use_input</span><span class="p">:</span>
+        <span class="n">parts</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">load_input_texts</span><span class="p">(</span><span class="n">input_dir</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="n">corpus</span> <span class="o">=</span> <span class="s2">"</span><span class="se">\n\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parts</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">corpus</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"no training text available: enable the bundled corpus or add .txt files to input/"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">corpus</span>
+</code></pre></div>
+</figure>
+<p>The corpus is the concatenation of the bundled file <code>data/sample_corpus.txt</code> and every <code>.txt</code> or <code>.md</code> file found recursively under <code>INPUT_DIR</code> (default <code>input/</code>). Files that are not valid UTF-8 are skipped, and <code>.gitkeep</code> and <code>.DS_Store</code> are ignored. The corpus is then encoded by the tokenizer chosen in sub-task 2, giving a one-dimensional <code>LongTensor</code>.</p>
+<figure class="source"><figcaption>training/data.py, lines 79-90: training.data.train_val_split</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">train_val_split</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">val_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Split a token stream into contiguous train / validation parts.</span>
+
+<span class="sd">    The split is contiguous (not shuffled) so validation text is genuinely</span>
+<span class="sd">    unseen; a shuffled split would leak neighbouring tokens into training.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"data must be a 1-D tensor of token ids"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;</span> <span class="n">val_fraction</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"val_fraction must be in (0, 1)"</span><span class="p">)</span>
+    <span class="n">n_val</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">*</span> <span class="n">val_fraction</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">data</span><span class="p">[:</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="n">n_val</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="n">n_val</span> <span class="p">:]</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>training/data.py, lines 93-113: training.data.get_batch</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_batch</span><span class="p">(</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">block_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">generator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Generator</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Sample ``batch_size`` random windows; return ``(x, y)`` of shape ``(B, T)``."""</span>
+    <span class="k">if</span> <span class="n">batch_size</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">block_size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"batch_size and block_size must be positive"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">block_size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"data has </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="si">}</span><span class="s2"> tokens but needs at least block_size + 1 = </span><span class="si">{</span><span class="n">block_size</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">; "</span>
+            <span class="s2">"use more text, a smaller context window, or a larger vocabulary (BPE)"</span>
+        <span class="p">)</span>
+    <span class="n">starts</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="n">block_size</span><span class="p">,</span> <span class="p">(</span><span class="n">batch_size</span><span class="p">,),</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">)</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">data</span><span class="p">[</span><span class="n">s</span> <span class="p">:</span> <span class="n">s</span> <span class="o">+</span> <span class="n">block_size</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">starts</span><span class="o">.</span><span class="n">tolist</span><span class="p">()])</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">data</span><span class="p">[</span><span class="n">s</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">s</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">block_size</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">starts</span><span class="o">.</span><span class="n">tolist</span><span class="p">()])</span>
+    <span class="k">if</span> <span class="n">device</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span> <span class="n">y</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span>
+</code></pre></div>
+</figure>
+<figure class="flow"><figcaption>Shifted windows: one window gives T training examples</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code> data:   t0  t1  t2  t3  t4  t5  t6 ...
+ window starting at s (length T+1):  [ts, ts+1, ..., ts+T]
+ x = [ts   ... ts+T-1]     what the model sees
+ y = [ts+1 ... ts+T  ]     the next token at every position</code></pre></figure>
+<p>The split is chronological, not random: the last part of the text is held out. With the bundled corpus there are 4,389 training and 487 validation tokens. Windows are drawn at random start positions from a seeded <code>torch.Generator</code>, so a run is reproducible.</p>
+<h2 id="optimisers">Optimisers</h2>
+<figure class="source"><figcaption>training/optimizers.py, lines 87-145: training.optimizers.Adam</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Adam</span><span class="p">(</span><span class="n">Optimizer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Adam; set ``decoupled=True`` for AdamW-style weight decay."""</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">params</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">,</span>
+        <span class="n">lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-3</span><span class="p">,</span>
+        <span class="n">betas</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.9</span><span class="p">,</span> <span class="mf">0.999</span><span class="p">),</span>
+        <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-8</span><span class="p">,</span>
+        <span class="n">weight_decay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">decoupled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">lr</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"lr must be &gt;= 0"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">betas</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">1.0</span> <span class="ow">and</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">betas</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"betas must be in [0, 1)"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">eps</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"eps must be &gt; 0"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">weight_decay</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"weight_decay must be &gt;= 0"</span><span class="p">)</span>
+        <span class="n">defaults</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">,</span> <span class="n">betas</span><span class="o">=</span><span class="n">betas</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="n">eps</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="n">weight_decay</span><span class="p">,</span> <span class="n">decoupled</span><span class="o">=</span><span class="n">decoupled</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">defaults</span><span class="p">)</span>
+
+    <span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">closure</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">closure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">enable_grad</span><span class="p">():</span>
+                <span class="n">loss</span> <span class="o">=</span> <span class="n">closure</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_groups</span><span class="p">:</span>
+            <span class="n">lr</span><span class="p">,</span> <span class="n">eps</span><span class="p">,</span> <span class="n">wd</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"lr"</span><span class="p">],</span> <span class="n">group</span><span class="p">[</span><span class="s2">"eps"</span><span class="p">],</span> <span class="n">group</span><span class="p">[</span><span class="s2">"weight_decay"</span><span class="p">]</span>
+            <span class="n">beta1</span><span class="p">,</span> <span class="n">beta2</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"betas"</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">group</span><span class="p">[</span><span class="s2">"params"</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">grad</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">g</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">grad</span>
+                <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">state</span><span class="p">:</span>  <span class="c1"># lazy state initialisation</span>
+                    <span class="n">state</span><span class="p">[</span><span class="s2">"step"</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">state</span><span class="p">[</span><span class="s2">"exp_avg"</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>  <span class="c1"># m</span>
+                    <span class="n">state</span><span class="p">[</span><span class="s2">"exp_avg_sq"</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>  <span class="c1"># v</span>
+                <span class="n">state</span><span class="p">[</span><span class="s2">"step"</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">t</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s2">"step"</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="n">wd</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">group</span><span class="p">[</span><span class="s2">"decoupled"</span><span class="p">]:</span>
+                        <span class="n">p</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">lr</span> <span class="o">*</span> <span class="n">wd</span><span class="p">)</span>  <span class="c1"># AdamW: shrink weights directly</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">g</span> <span class="o">=</span> <span class="n">g</span> <span class="o">+</span> <span class="n">wd</span> <span class="o">*</span> <span class="n">p</span>  <span class="c1"># Adam: L2 penalty enters the gradient</span>
+
+                <span class="n">m</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s2">"exp_avg"</span><span class="p">],</span> <span class="n">state</span><span class="p">[</span><span class="s2">"exp_avg_sq"</span><span class="p">]</span>
+                <span class="n">m</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">beta1</span><span class="p">)</span><span class="o">.</span><span class="n">add_</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span> <span class="o">-</span> <span class="n">beta1</span><span class="p">)</span>
+                <span class="n">v</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">beta2</span><span class="p">)</span><span class="o">.</span><span class="n">addcmul_</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">1</span> <span class="o">-</span> <span class="n">beta2</span><span class="p">)</span>
+
+                <span class="n">bias1</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">beta1</span><span class="o">**</span><span class="n">t</span>
+                <span class="n">bias2</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">beta2</span><span class="o">**</span><span class="n">t</span>
+                <span class="n">denom</span> <span class="o">=</span> <span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">sqrt</span><span class="p">()</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">bias2</span><span class="p">))</span><span class="o">.</span><span class="n">add_</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">addcdiv_</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">denom</span><span class="p">,</span> <span class="n">value</span><span class="o">=-</span><span class="n">lr</span> <span class="o">/</span> <span class="n">bias1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">loss</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>training/optimizers.py, lines 39-84: training.optimizers.SGD</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SGD</span><span class="p">(</span><span class="n">Optimizer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Stochastic gradient descent with optional (Nesterov) momentum and L2 decay."""</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">params</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">,</span>
+        <span class="n">lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-2</span><span class="p">,</span>
+        <span class="n">momentum</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">weight_decay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">nesterov</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">lr</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"lr must be &gt;= 0"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">momentum</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"momentum must be &gt;= 0"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">weight_decay</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"weight_decay must be &gt;= 0"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">nesterov</span> <span class="ow">and</span> <span class="n">momentum</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Nesterov momentum requires momentum &gt; 0"</span><span class="p">)</span>
+        <span class="n">defaults</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="n">momentum</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="n">weight_decay</span><span class="p">,</span> <span class="n">nesterov</span><span class="o">=</span><span class="n">nesterov</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">defaults</span><span class="p">)</span>
+
+    <span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">closure</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">closure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">enable_grad</span><span class="p">():</span>
+                <span class="n">loss</span> <span class="o">=</span> <span class="n">closure</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_groups</span><span class="p">:</span>
+            <span class="n">lr</span><span class="p">,</span> <span class="n">mom</span><span class="p">,</span> <span class="n">wd</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"lr"</span><span class="p">],</span> <span class="n">group</span><span class="p">[</span><span class="s2">"momentum"</span><span class="p">],</span> <span class="n">group</span><span class="p">[</span><span class="s2">"weight_decay"</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">group</span><span class="p">[</span><span class="s2">"params"</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">grad</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">g</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">grad</span>
+                <span class="k">if</span> <span class="n">wd</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">g</span> <span class="o">=</span> <span class="n">g</span> <span class="o">+</span> <span class="n">wd</span> <span class="o">*</span> <span class="n">p</span>  <span class="c1"># L2 regularisation folded into the gradient</span>
+                <span class="k">if</span> <span class="n">mom</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="s2">"momentum_buffer"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">state</span><span class="p">:</span>
+                        <span class="n">state</span><span class="p">[</span><span class="s2">"momentum_buffer"</span><span class="p">]</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>  <span class="c1"># first step: buf = g</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">state</span><span class="p">[</span><span class="s2">"momentum_buffer"</span><span class="p">]</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">mom</span><span class="p">)</span><span class="o">.</span><span class="n">add_</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+                    <span class="n">buf</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s2">"momentum_buffer"</span><span class="p">]</span>
+                    <span class="n">g</span> <span class="o">=</span> <span class="n">g</span> <span class="o">+</span> <span class="n">mom</span> <span class="o">*</span> <span class="n">buf</span> <span class="k">if</span> <span class="n">group</span><span class="p">[</span><span class="s2">"nesterov"</span><span class="p">]</span> <span class="k">else</span> <span class="n">buf</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">add_</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=-</span><span class="n">lr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">loss</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>training/optimizers.py, lines 148-172: training.optimizers.build_optimizer</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build_optimizer</span><span class="p">(</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">params</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">,</span>
+    <span class="n">lr</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">weight_decay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">momentum</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span><span class="p">,</span>
+    <span class="n">betas</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.9</span><span class="p">,</span> <span class="mf">0.999</span><span class="p">),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optimizer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Create an optimizer by name.</span>
+
+<span class="sd">    ``adam`` / ``adamw`` / ``sgd`` are the hand-written classes above;</span>
+<span class="sd">    ``torch_adamw`` / ``torch_sgd`` are the reference implementations from PyTorch.</span>
+<span class="sd">    """</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"adam"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Adam</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">,</span> <span class="n">betas</span><span class="o">=</span><span class="n">betas</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="n">weight_decay</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"adamw"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Adam</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">,</span> <span class="n">betas</span><span class="o">=</span><span class="n">betas</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="n">weight_decay</span><span class="p">,</span> <span class="n">decoupled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"sgd"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">SGD</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="n">momentum</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="n">weight_decay</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"torch_adamw"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">AdamW</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">,</span> <span class="n">betas</span><span class="o">=</span><span class="n">betas</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="n">weight_decay</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"torch_sgd"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="n">momentum</span><span class="p">,</span> <span class="n">weight_decay</span><span class="o">=</span><span class="n">weight_decay</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown optimizer </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">; choose from </span><span class="si">{</span><span class="n">OPTIMIZER_NAMES</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div>
+</figure>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Implementation</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>adam</code></td>
+<td><code>training.optimizers.Adam</code></td>
+<td>hand-written, L2-style weight decay added to the gradient</td>
+</tr>
+<tr>
+<td><code>adamw</code></td>
+<td><code>training.optimizers.Adam</code> with decoupled decay</td>
+<td>default in <code>TrainConfig</code></td>
+</tr>
+<tr>
+<td><code>sgd</code></td>
+<td><code>training.optimizers.SGD</code></td>
+<td>optional momentum</td>
+</tr>
+<tr>
+<td><code>torch_adamw</code>, <code>torch_sgd</code></td>
+<td><code>torch.optim</code></td>
+<td>reference implementations used to cross-check the hand-written ones in the tests</td>
+</tr>
+</tbody>
+</table></div>
+<p>Weight decay is applied to every parameter, including biases, LayerNorm gains and embeddings. This is a deliberate simplification; production code usually excludes them.</p>
+<h2 id="learning-rate-schedules">Learning-rate schedules</h2>
+<figure class="source"><figcaption>training/schedulers.py, lines 21-46: training.schedulers.warmup_cosine_lr</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">warmup_cosine_lr</span><span class="p">(</span>
+    <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">base_lr</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">warmup_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">total_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">min_lr_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Learning rate for 0-based ``step``.</span>
+
+<span class="sd">    ``step &lt; warmup_steps``: linear ramp ``base_lr * (step + 1) / warmup_steps``.</span>
+<span class="sd">    Afterwards: cosine decay to ``base_lr * min_lr_ratio`` at ``total_steps`` (held afterwards).</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">base_lr</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">min_lr_ratio</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"base_lr must be &gt;= 0 and min_lr_ratio in [0, 1]"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">warmup_steps</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">total_steps</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"warmup_steps must be &gt;= 0 and total_steps &gt; 0"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">step</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"step must be &gt;= 0"</span><span class="p">)</span>
+    <span class="n">min_lr</span> <span class="o">=</span> <span class="n">base_lr</span> <span class="o">*</span> <span class="n">min_lr_ratio</span>
+    <span class="k">if</span> <span class="n">step</span> <span class="o">&lt;</span> <span class="n">warmup_steps</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">base_lr</span> <span class="o">*</span> <span class="p">(</span><span class="n">step</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">warmup_steps</span>
+    <span class="k">if</span> <span class="n">step</span> <span class="o">&gt;=</span> <span class="n">total_steps</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">min_lr</span>
+    <span class="n">decay_span</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">total_steps</span> <span class="o">-</span> <span class="n">warmup_steps</span><span class="p">)</span>
+    <span class="n">progress</span> <span class="o">=</span> <span class="p">(</span><span class="n">step</span> <span class="o">-</span> <span class="n">warmup_steps</span><span class="p">)</span> <span class="o">/</span> <span class="n">decay_span</span>
+    <span class="k">return</span> <span class="n">min_lr</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">base_lr</span> <span class="o">-</span> <span class="n">min_lr</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">progress</span><span class="p">))</span>
+</code></pre></div>
+</figure>
+<p>Only two schedules exist: <code>warmup_cosine</code> and <code>constant</code>. With the defaults (<code>lr</code> 3e-3, 20 warm-up steps, 300 steps, <code>min_lr_ratio</code> 0.1) the rate is 0.00015 at step 0, 0.003 at step 19, 0.00165 at step 160 and 0.0003 at step 299.</p>
+<figure class="chart" id="chart-lr"><figcaption><strong>Learning-rate schedule of the reference run.</strong> Linear warm-up over 20 steps to 0.003, then cosine decay to 0.0003 at step 300.</figcaption><svg class="chart-svg" viewBox="0 0 720 340" role="img" aria-labelledby="chart-lr-t chart-lr-d" xmlns="http://www.w3.org/2000/svg"><title id="chart-lr-t">Learning-rate schedule of the reference run</title><desc id="chart-lr-d">Linear warm-up over 20 steps to 0.003, then cosine decay to 0.0003 at step 300.</desc><rect class="plot-bg" x="64" y="18" width="632" height="270"/><line class="grid" x1="64" x2="696" y1="203.4" y2="203.4"/><text class="tick" x="56" y="207.4" text-anchor="end">0.0010</text><line class="grid" x1="64" x2="696" y1="115.7" y2="115.7"/><text class="tick" x="56" y="119.7" text-anchor="end">0.0020</text><line class="grid" x1="64" x2="696" y1="28.0" y2="28.0"/><text class="tick" x="56" y="32.0" text-anchor="end">0.0030</text><line class="grid" x1="167.6" x2="167.6" y1="18" y2="288"/><text class="tick" x="167.6" y="306" text-anchor="middle">50</text><line class="grid" x1="273.3" x2="273.3" y1="18" y2="288"/><text class="tick" x="273.3" y="306" text-anchor="middle">100</text><line class="grid" x1="378.9" x2="378.9" y1="18" y2="288"/><text class="tick" x="378.9" y="306" text-anchor="middle">150</text><line class="grid" x1="484.6" x2="484.6" y1="18" y2="288"/><text class="tick" x="484.6" y="306" text-anchor="middle">200</text><line class="grid" x1="590.3" x2="590.3" y1="18" y2="288"/><text class="tick" x="590.3" y="306" text-anchor="middle">250</text><line class="grid" x1="696.0" x2="696.0" y1="18" y2="288"/><text class="tick" x="696.0" y="306" text-anchor="middle">300</text><line class="axis" x1="64" x2="696" y1="288" y2="288"/><line class="axis" x1="64" x2="64" y1="18" y2="288"/><text class="label" x="380" y="332" text-anchor="middle">step</text><text class="label" transform="translate(16 153) rotate(-90)" text-anchor="middle">learning rate</text><polyline class="line s1" points="64.0,278.0 66.1,264.8 68.2,251.7 70.3,238.5 72.5,225.4 74.6,212.2 76.7,199.1 78.8,185.9 80.9,172.7 83.0,159.6 85.1,146.4 87.3,133.3 89.4,120.1 91.5,106.9 93.6,93.8 95.7,80.6 97.8,67.5 99.9,54.3 102.0,41.2 104.2,28.0 106.3,28.0 108.4,28.0 110.5,28.0 112.6,28.1 114.7,28.1 116.8,28.2 119.0,28.3 121.1,28.4 123.2,28.4 125.3,28.6 127.4,28.7 129.5,28.9 131.6,29.1 133.8,29.2 135.9,29.5 138.0,29.7 140.1,29.9 142.2,30.1 144.3,30.4 146.4,30.7 148.5,31.0 150.7,31.2 152.8,31.6 154.9,31.9 157.0,32.3 159.1,32.6 161.2,33.0 163.3,33.4 165.5,33.8 167.6,34.2 169.7,34.7 171.8,35.1 173.9,35.5 176.0,36.0 178.1,36.5 180.3,37.0 182.4,37.6 184.5,38.1 186.6,38.6 188.7,39.1 190.8,39.8 192.9,40.3 195.1,40.9 197.2,41.5 199.3,42.1 201.4,42.7 203.5,43.4 205.6,44.1 207.7,44.8 209.8,45.5 212.0,46.2 214.1,46.9 216.2,47.6 218.3,48.4 220.4,49.1 222.5,49.8 224.6,50.6 226.8,51.4 228.9,52.2 231.0,53.0 233.1,53.9 235.2,54.7 237.3,55.5 239.4,56.3 241.6,57.2 243.7,58.1 245.8,59.1 247.9,59.9 250.0,60.8 252.1,61.8 254.2,62.6 256.3,63.6 258.5,64.6 260.6,65.5 262.7,66.5 264.8,67.5 266.9,68.5 269.0,69.5 271.1,70.5 273.3,71.5 275.4,72.6 277.5,73.6 279.6,74.7 281.7,75.7 283.8,76.8 285.9,77.9 288.1,79.0 290.2,80.1 292.3,81.2 294.4,82.3 296.5,83.4 298.6,84.6 300.7,85.7 302.8,86.9 305.0,88.0 307.1,89.1 309.2,90.3 311.3,91.5 313.4,92.6 315.5,93.9 317.6,95.0 319.8,96.2 321.9,97.5 324.0,98.7 326.1,99.8 328.2,101.1 330.3,102.3 332.4,103.5 334.6,104.8 336.7,106.1 338.8,107.3 340.9,108.5 343.0,109.8 345.1,111.1 347.2,112.4 349.4,113.6 351.5,114.9 353.6,116.2 355.7,117.5 357.8,118.8 359.9,120.1 362.0,121.3 364.1,122.6 366.3,124.0 368.4,125.3 370.5,126.6 372.6,127.9 374.7,129.2 376.8,130.5 378.9,131.9 381.1,133.2 383.2,134.5 385.3,135.8 387.4,137.1 389.5,138.4 391.6,139.8 393.7,141.1 395.9,142.5 398.0,143.8 400.1,145.1 402.2,146.4 404.3,147.7 406.4,149.1 408.5,150.4 410.6,151.8 412.8,153.1 414.9,154.4 417.0,155.7 419.1,157.0 421.2,158.4 423.3,159.7 425.4,161.0 427.6,162.3 429.7,163.6 431.8,164.9 433.9,166.2 436.0,167.6 438.1,168.9 440.2,170.2 442.4,171.5 444.5,172.7 446.6,174.1 448.7,175.4 450.8,176.7 452.9,177.9 455.0,179.2 457.2,180.5 459.3,181.8 461.4,183.0 463.5,184.3 465.6,185.5 467.7,186.8 469.8,188.0 471.9,189.3 474.1,190.5 476.2,191.8 478.3,193.0 480.4,194.1 482.5,195.4 484.6,196.6 486.7,197.8 488.9,199.0 491.0,200.2 493.1,201.3 495.2,202.6 497.3,203.7 499.4,204.8 501.5,206.0 503.7,207.1 505.8,208.3 507.9,209.4 510.0,210.5 512.1,211.7 514.2,212.7 516.3,213.9 518.4,214.9 520.6,216.1 522.7,217.1 524.8,218.2 526.9,219.2 529.0,220.3 531.1,221.3 533.2,222.3 535.4,223.4 537.5,224.3 539.6,225.4 541.7,226.3 543.8,227.3 545.9,228.3 548.0,229.2 550.2,230.2 552.3,231.1 554.4,232.0 556.5,232.9 558.6,233.8 560.7,234.8 562.8,235.6 564.9,236.5 567.1,237.3 569.2,238.2 571.3,239.0 573.4,239.8 575.5,240.6 577.6,241.4 579.7,242.2 581.9,243.0 584.0,243.8 586.1,244.5 588.2,245.3 590.3,246.0 592.4,246.7 594.5,247.4 596.7,248.1 598.8,248.8 600.9,249.4 603.0,250.1 605.1,250.7 607.2,251.3 609.3,251.9 611.5,252.6 613.6,253.1 615.7,253.7 617.8,254.2 619.9,254.8 622.0,255.3 624.1,255.8 626.2,256.3 628.4,256.9 630.5,257.3 632.6,257.7 634.7,258.2 636.8,258.6 638.9,259.1 641.0,259.5 643.2,259.8 645.3,260.2 647.4,260.5 649.5,260.9 651.6,261.2 653.7,261.6 655.8,261.9 658.0,262.1 660.1,262.5 662.2,262.7 664.3,262.9 666.4,263.2 668.5,263.4 670.6,263.6 672.7,263.8 674.9,264.0 677.0,264.1 679.1,264.2 681.2,264.4 683.3,264.5 685.4,264.6 687.5,264.7 689.7,264.8 691.8,264.8 693.9,264.8 696.0,264.8"/></svg><ul class="legend"><li><svg width="30" height="10" aria-hidden="true"><line class="line s1" x1="0" x2="30" y1="5" y2="5"/></svg> learning rate</li></ul><details class="data"><summary>Show the data behind this chart</summary><div class="scroll" tabindex="0"><div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table><caption>Learning-rate schedule of the reference run (sampled steps)</caption><thead><tr><th scope="col">step</th><th scope="col">learning rate</th></tr></thead><tbody><tr><th scope="row">1</th><td>0.00015</td></tr><tr><th scope="row">25</th><td>0.00300</td></tr><tr><th scope="row">49</th><td>0.00293</td></tr><tr><th scope="row">73</th><td>0.00278</td></tr><tr><th scope="row">97</th><td>0.00254</td></tr><tr><th scope="row">121</th><td>0.00224</td></tr><tr><th scope="row">145</th><td>0.00189</td></tr><tr><th scope="row">169</th><td>0.00153</td></tr><tr><th scope="row">193</th><td>0.00118</td></tr><tr><th scope="row">217</th><td>0.00086</td></tr><tr><th scope="row">241</th><td>0.00060</td></tr><tr><th scope="row">265</th><td>0.00041</td></tr><tr><th scope="row">289</th><td>0.00031</td></tr><tr><th scope="row">300</th><td>0.00030</td></tr></tbody></table></div></div></details></figure>
+<h2 id="configuration-object">Configuration object</h2>
+<figure class="source"><figcaption>training/trainer.py, lines 30-69: training.trainer.TrainConfig</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TrainConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Hyper-parameters of a training run (validated on creation)."""</span>
+
+    <span class="n">steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>
+    <span class="n">block_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span>  <span class="c1"># tokens per training window (must be &lt;= model context)</span>
+    <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"adamw"</span>
+    <span class="n">lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3e-3</span>
+    <span class="n">weight_decay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.01</span>
+    <span class="n">momentum</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span>  <span class="c1"># SGD only</span>
+    <span class="n">schedule</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"warmup_cosine"</span>
+    <span class="n">warmup_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">min_lr_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">grad_clip</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># 0 disables clipping</span>
+    <span class="n">eval_interval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">25</span>
+    <span class="n">eval_batches</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">42</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"steps"</span><span class="p">,</span> <span class="s2">"batch_size"</span><span class="p">,</span> <span class="s2">"block_size"</span><span class="p">,</span> <span class="s2">"eval_interval"</span><span class="p">,</span> <span class="s2">"eval_batches"</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> must be positive"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">OPTIMIZER_NAMES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"optimizer must be one of </span><span class="si">{</span><span class="n">OPTIMIZER_NAMES</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">schedule</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">SCHEDULE_NAMES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"schedule must be one of </span><span class="si">{</span><span class="n">SCHEDULE_NAMES</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_decay</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">grad_clip</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"lr, weight_decay, momentum and grad_clip must be &gt;= 0"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">warmup_steps</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"warmup_steps must be &gt;= 0"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_lr_ratio</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"min_lr_ratio must be in [0, 1]"</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">asdict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"TrainConfig"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">state</span><span class="p">)</span>
+</code></pre></div>
+</figure>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Constraint</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>steps</code></td>
+<td>300</td>
+<td>&gt; 0</td>
+<td>number of optimisation steps</td>
+</tr>
+<tr>
+<td><code>batch_size</code></td>
+<td>16</td>
+<td>&gt; 0</td>
+<td>windows per step</td>
+</tr>
+<tr>
+<td><code>block_size</code></td>
+<td>64</td>
+<td>&gt; 0 and at most the model context</td>
+<td>tokens per window</td>
+</tr>
+<tr>
+<td><code>optimizer</code></td>
+<td><code>adamw</code></td>
+<td>one of <code>OPTIMIZER_NAMES</code></td>
+<td>update rule</td>
+</tr>
+<tr>
+<td><code>lr</code></td>
+<td>3e-3</td>
+<td>&gt;= 0</td>
+<td>peak learning rate</td>
+</tr>
+<tr>
+<td><code>weight_decay</code></td>
+<td>0.01</td>
+<td>&gt;= 0</td>
+<td>decay strength</td>
+</tr>
+<tr>
+<td><code>momentum</code></td>
+<td>0.9</td>
+<td>&gt;= 0</td>
+<td>SGD only</td>
+</tr>
+<tr>
+<td><code>schedule</code></td>
+<td><code>warmup_cosine</code></td>
+<td>one of <code>SCHEDULE_NAMES</code></td>
+<td>learning-rate curve</td>
+</tr>
+<tr>
+<td><code>warmup_steps</code></td>
+<td>20</td>
+<td>&gt;= 0</td>
+<td>linear ramp length</td>
+</tr>
+<tr>
+<td><code>min_lr_ratio</code></td>
+<td>0.1</td>
+<td>[0, 1]</td>
+<td>final rate as a fraction of <code>lr</code></td>
+</tr>
+<tr>
+<td><code>grad_clip</code></td>
+<td>1.0</td>
+<td>&gt;= 0</td>
+<td>maximum global gradient norm; 0 disables clipping</td>
+</tr>
+<tr>
+<td><code>eval_interval</code></td>
+<td>25</td>
+<td>&gt; 0</td>
+<td>steps between validation passes</td>
+</tr>
+<tr>
+<td><code>eval_batches</code></td>
+<td>10</td>
+<td>&gt; 0</td>
+<td>batches averaged per validation pass</td>
+</tr>
+<tr>
+<td><code>seed</code></td>
+<td>42</td>
+<td>any int</td>
+<td>seed of the batch generator</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>TrainConfig.__post_init__</code> raises <code>ValueError</code> for any violation. <code>to_dict()</code> and <code>from_dict()</code> store it in checkpoints.</p>
+<h2 id="gradient-clipping-and-evaluation">Gradient clipping and evaluation</h2>
+<figure class="source"><figcaption>training/trainer.py, lines 72-88: training.trainer.clip_grad_norm</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">clip_grad_norm</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">],</span> <span class="n">max_norm</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Rescale gradients so their global L2 norm is at most ``max_norm``.</span>
+
+<span class="sd">        total = sqrt(sum_i ||g_i||^2);  if total &gt; max_norm: g_i *= max_norm / total</span>
+
+<span class="sd">    Returns the norm *before* clipping (useful to monitor). ``max_norm &lt;= 0``</span>
+<span class="sd">    only measures.</span>
+<span class="sd">    """</span>
+    <span class="n">grads</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">grad</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">grad</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">grads</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="nb">float</span><span class="p">((</span><span class="n">g</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">float</span><span class="p">()</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">grads</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">max_norm</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">total</span> <span class="o">&gt;</span> <span class="n">max_norm</span><span class="p">:</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">max_norm</span> <span class="o">/</span> <span class="p">(</span><span class="n">total</span> <span class="o">+</span> <span class="mf">1e-6</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">grads</span><span class="p">:</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">total</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>.venv/lib/python3.13/site-packages/torch/utils/_contextlib.py, lines 91-111: training.trainer.estimate_loss</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">estimate_loss</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">block_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">n_batches</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Average loss over ``n_batches`` random batches (dropout off, fixed seed)."""</span>
+    <span class="n">was_training</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">training</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+    <span class="n">gen</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Generator</span><span class="p">()</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>  <span class="c1"># same windows every call -&gt; comparable numbers</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_batches</span><span class="p">):</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">get_batch</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">block_size</span><span class="p">,</span> <span class="n">gen</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">loss</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="n">total</span> <span class="o">+=</span> <span class="n">loss</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">was_training</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">total</span> <span class="o">/</span> <span class="n">n_batches</span>
+</code></pre></div>
+</figure>
+<p>Evaluation uses a fixed generator, so every call sees the same validation windows and the numbers are comparable across the run. It switches the model to <code>eval()</code> and restores the previous mode afterwards.</p>
+<h2 id="the-training-loop">The training loop</h2>
+<figure class="source"><figcaption>training/trainer.py, lines 114-183: training.trainer.train</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">train</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">train_data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="n">val_data</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
+    <span class="n">cfg</span><span class="p">:</span> <span class="n">TrainConfig</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+    <span class="n">should_stop</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Optimizer</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">start_step</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Run the training loop, yielding one metrics dict per step.</span>
+
+<span class="sd">    Each dict has: ``step`` (1-based, counted from ``start_step``), ``train_loss``,</span>
+<span class="sd">    ``val_loss`` (``None`` between evaluations), ``lr``, ``grad_norm``,</span>
+<span class="sd">    ``tokens_per_sec``, ``elapsed`` and ``done`` (True on the last yield).</span>
+<span class="sd">    ``should_stop`` is polled before each step so a UI can cancel a run; pass</span>
+<span class="sd">    ``optimizer``/``start_step`` to resume from a checkpoint.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">block_size</span> <span class="o">&gt;</span> <span class="n">model</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">max_seq_len</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"block_size </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">block_size</span><span class="si">}</span><span class="s2"> exceeds the model context </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">max_seq_len</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+    <span class="n">gen</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Generator</span><span class="p">()</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">seed</span> <span class="o">+</span> <span class="n">start_step</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">optimizer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">optimizer</span> <span class="o">=</span> <span class="n">build_optimizer</span><span class="p">(</span>
+            <span class="n">cfg</span><span class="o">.</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">cfg</span><span class="o">.</span><span class="n">lr</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">weight_decay</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">momentum</span>
+        <span class="p">)</span>
+    <span class="n">schedule</span> <span class="o">=</span> <span class="n">build_schedule</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">schedule</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">lr</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">warmup_steps</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">steps</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">min_lr_ratio</span><span class="p">)</span>
+
+    <span class="n">started</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">steps</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">should_stop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">should_stop</span><span class="p">():</span>
+            <span class="k">return</span>
+        <span class="n">step</span> <span class="o">=</span> <span class="n">start_step</span> <span class="o">+</span> <span class="n">i</span>
+        <span class="n">lr</span> <span class="o">=</span> <span class="n">schedule</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">param_groups</span><span class="p">:</span>
+            <span class="n">group</span><span class="p">[</span><span class="s2">"lr"</span><span class="p">]</span> <span class="o">=</span> <span class="n">lr</span>
+
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">get_batch</span><span class="p">(</span><span class="n">train_data</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">block_size</span><span class="p">,</span> <span class="n">gen</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">loss</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>  <span class="c1"># forward pass + cross-entropy</span>
+        <span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">(</span><span class="n">set_to_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>  <span class="c1"># backpropagation</span>
+        <span class="n">grad_norm</span> <span class="o">=</span> <span class="n">clip_grad_norm</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">cfg</span><span class="o">.</span><span class="n">grad_clip</span><span class="p">)</span>
+        <span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>  <span class="c1"># parameter update</span>
+
+        <span class="n">loss_value</span> <span class="o">=</span> <span class="n">loss</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">loss_value</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">FloatingPointError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"loss became </span><span class="si">{</span><span class="n">loss_value</span><span class="si">}</span><span class="s2"> at step </span><span class="si">{</span><span class="n">step</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">; lower the learning rate"</span>
+            <span class="p">)</span>
+        <span class="n">val_loss</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">is_last</span> <span class="o">=</span> <span class="n">i</span> <span class="o">==</span> <span class="n">cfg</span><span class="o">.</span><span class="n">steps</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">val_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">((</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">cfg</span><span class="o">.</span><span class="n">eval_interval</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">is_last</span> <span class="ow">or</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="n">val_loss</span> <span class="o">=</span> <span class="n">estimate_loss</span><span class="p">(</span>
+                <span class="n">model</span><span class="p">,</span> <span class="n">val_data</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">block_size</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">eval_batches</span><span class="p">,</span> <span class="n">device</span>
+            <span class="p">)</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">,</span> <span class="mf">1e-9</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="p">{</span>
+            <span class="s2">"step"</span><span class="p">:</span> <span class="n">step</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">"train_loss"</span><span class="p">:</span> <span class="n">loss_value</span><span class="p">,</span>
+            <span class="s2">"val_loss"</span><span class="p">:</span> <span class="n">val_loss</span><span class="p">,</span>
+            <span class="s2">"lr"</span><span class="p">:</span> <span class="n">lr</span><span class="p">,</span>
+            <span class="s2">"grad_norm"</span><span class="p">:</span> <span class="n">grad_norm</span><span class="p">,</span>
+            <span class="s2">"tokens_per_sec"</span><span class="p">:</span> <span class="n">cfg</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">cfg</span><span class="o">.</span><span class="n">block_size</span> <span class="o">/</span> <span class="n">dt</span><span class="p">,</span>
+            <span class="s2">"elapsed"</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">started</span><span class="p">,</span>
+            <span class="s2">"done"</span><span class="p">:</span> <span class="n">is_last</span><span class="p">,</span>
+        <span class="p">}</span>
+</code></pre></div>
+</figure>
+<h3 id="metrics-dictionary">Metrics dictionary</h3>
+<figure class="flow"><figcaption>Schema of each yielded dictionary</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>step            int     1-based, counted from start_step
+train_loss      float   loss of this step&#x27;s batch
+val_loss        float | None   only at step 1, every eval_interval steps and the last step
+lr              float   rate applied in this step
+grad_norm       float   global norm BEFORE clipping
+tokens_per_sec  float   batch_size * block_size / step time
+elapsed         float   seconds since the run started
+done            bool    True on the last step of the run</code></pre></figure>
+<h3 id="reference-run">Reference run</h3>
+<figure class="chart" id="chart-loss"><figcaption><strong>Cross-entropy loss during the reference run.</strong> Training loss falls from 3.967 to 3.037 in 300 steps; validation loss ends at 3.086. The dotted line is the loss of a uniform guesser, ln(51).</figcaption><svg class="chart-svg" viewBox="0 0 720 340" role="img" aria-labelledby="chart-loss-t chart-loss-d" xmlns="http://www.w3.org/2000/svg"><title id="chart-loss-t">Cross-entropy loss during the reference run</title><desc id="chart-loss-d">Training loss falls from 3.967 to 3.037 in 300 steps; validation loss ends at 3.086. The dotted line is the loss of a uniform guesser, ln(51).</desc><rect class="plot-bg" x="64" y="18" width="632" height="270"/><line class="grid" x1="64" x2="696" y1="256.0" y2="256.0"/><text class="tick" x="56" y="260.0" text-anchor="end">3.00</text><line class="grid" x1="64" x2="696" y1="138.1" y2="138.1"/><text class="tick" x="56" y="142.1" text-anchor="end">3.50</text><line class="grid" x1="167.6" x2="167.6" y1="18" y2="288"/><text class="tick" x="167.6" y="306" text-anchor="middle">50</text><line class="grid" x1="273.3" x2="273.3" y1="18" y2="288"/><text class="tick" x="273.3" y="306" text-anchor="middle">100</text><line class="grid" x1="378.9" x2="378.9" y1="18" y2="288"/><text class="tick" x="378.9" y="306" text-anchor="middle">150</text><line class="grid" x1="484.6" x2="484.6" y1="18" y2="288"/><text class="tick" x="484.6" y="306" text-anchor="middle">200</text><line class="grid" x1="590.3" x2="590.3" y1="18" y2="288"/><text class="tick" x="590.3" y="306" text-anchor="middle">250</text><line class="grid" x1="696.0" x2="696.0" y1="18" y2="288"/><text class="tick" x="696.0" y="306" text-anchor="middle">300</text><line class="axis" x1="64" x2="696" y1="288" y2="288"/><line class="axis" x1="64" x2="64" y1="18" y2="288"/><text class="label" x="380" y="332" text-anchor="middle">step</text><text class="label" transform="translate(16 153) rotate(-90)" text-anchor="middle">loss (nats per token)</text><line class="ref" x1="64" x2="696" y1="36.3" y2="36.3"/><text class="tick" x="692" y="31.3" text-anchor="end">uniform guess ln(51) = 3.932</text><polyline class="line s0 thin" points="64.0,28.0 66.1,30.6 68.2,39.7 70.3,44.2 72.5,56.2 74.6,68.8 76.7,88.6 78.8,106.9 80.9,117.1 83.0,138.6 85.1,142.0 87.3,160.4 89.4,177.5 91.5,190.8 93.6,201.9 95.7,211.6 97.8,224.1 99.9,231.7 102.0,225.2 104.2,219.3 106.3,233.8 108.4,237.3 110.5,254.4 112.6,225.3 114.7,237.2 116.8,236.2 119.0,228.6 121.1,232.5 123.2,256.9 125.3,241.2 127.4,255.2 129.5,229.1 131.6,239.1 133.8,240.2 135.9,247.3 138.0,240.5 140.1,245.8 142.2,248.0 144.3,252.5 146.4,219.8 148.5,260.6 150.7,253.4 152.8,237.6 154.9,240.2 157.0,235.3 159.1,219.4 161.2,250.9 163.3,233.1 165.5,234.1 167.6,242.4 169.7,249.5 171.8,253.0 173.9,253.1 176.0,254.7 178.1,246.0 180.3,239.6 182.4,255.5 184.5,236.3 186.6,258.3 188.7,249.7 190.8,263.2 192.9,244.0 195.1,254.0 197.2,265.3 199.3,248.5 201.4,247.8 203.5,251.2 205.6,231.7 207.7,252.1 209.8,240.0 212.0,252.8 214.1,238.8 216.2,245.5 218.3,247.6 220.4,241.4 222.5,245.9 224.6,240.2 226.8,233.3 228.9,245.2 231.0,231.9 233.1,252.7 235.2,239.7 237.3,251.8 239.4,232.6 241.6,254.8 243.7,242.8 245.8,243.0 247.9,229.6 250.0,237.4 252.1,244.6 254.2,261.3 256.3,228.3 258.5,247.3 260.6,249.7 262.7,262.4 264.8,265.5 266.9,262.1 269.0,256.5 271.1,248.2 273.3,249.4 275.4,253.6 277.5,263.7 279.6,243.4 281.7,247.4 283.8,266.6 285.9,232.6 288.1,252.7 290.2,255.0 292.3,243.0 294.4,247.3 296.5,225.3 298.6,244.7 300.7,245.5 302.8,233.6 305.0,246.7 307.1,236.4 309.2,250.1 311.3,268.0 313.4,234.6 315.5,241.2 317.6,238.2 319.8,254.7 321.9,240.6 324.0,250.3 326.1,258.3 328.2,224.9 330.3,263.2 332.4,266.4 334.6,241.4 336.7,267.3 338.8,251.9 340.9,254.9 343.0,267.4 345.1,264.2 347.2,250.0 349.4,250.6 351.5,240.8 353.6,239.8 355.7,230.6 357.8,267.0 359.9,249.3 362.0,248.3 364.1,248.5 366.3,258.0 368.4,232.2 370.5,261.7 372.6,250.4 374.7,242.0 376.8,247.5 378.9,254.0 381.1,258.4 383.2,252.9 385.3,249.7 387.4,251.6 389.5,228.1 391.6,232.1 393.7,237.2 395.9,239.0 398.0,245.0 400.1,238.8 402.2,236.3 404.3,252.0 406.4,253.5 408.5,240.3 410.6,235.3 412.8,260.1 414.9,253.6 417.0,246.2 419.1,255.0 421.2,238.9 423.3,260.8 425.4,228.6 427.6,238.8 429.7,243.7 431.8,273.0 433.9,241.9 436.0,256.4 438.1,252.7 440.2,235.2 442.4,256.3 444.5,254.3 446.6,247.0 448.7,260.0 450.8,257.1 452.9,243.6 455.0,241.6 457.2,242.0 459.3,244.5 461.4,245.0 463.5,252.6 465.6,252.6 467.7,236.6 469.8,257.0 471.9,265.5 474.1,251.3 476.2,254.3 478.3,248.0 480.4,241.9 482.5,252.1 484.6,214.7 486.7,254.1 488.9,241.9 491.0,251.1 493.1,249.4 495.2,239.7 497.3,249.8 499.4,239.7 501.5,246.0 503.7,243.3 505.8,228.7 507.9,248.2 510.0,260.8 512.1,232.9 514.2,256.4 516.3,235.9 518.4,245.1 520.6,261.9 522.7,252.2 524.8,256.0 526.9,268.0 529.0,260.8 531.1,238.2 533.2,250.4 535.4,254.8 537.5,239.2 539.6,252.8 541.7,231.8 543.8,254.9 545.9,238.6 548.0,264.3 550.2,240.4 552.3,248.5 554.4,257.1 556.5,232.4 558.6,259.0 560.7,249.1 562.8,236.4 564.9,249.7 567.1,242.7 569.2,239.1 571.3,247.8 573.4,235.4 575.5,257.1 577.6,240.8 579.7,257.1 581.9,254.9 584.0,229.9 586.1,239.0 588.2,237.5 590.3,256.6 592.4,256.0 594.5,237.8 596.7,259.6 598.8,255.2 600.9,249.6 603.0,266.0 605.1,247.8 607.2,253.4 609.3,239.3 611.5,244.4 613.6,271.8 615.7,262.4 617.8,235.9 619.9,241.9 622.0,236.8 624.1,251.5 626.2,242.7 628.4,221.3 630.5,243.9 632.6,253.9 634.7,236.4 636.8,262.1 638.9,236.5 641.0,231.7 643.2,257.7 645.3,240.7 647.4,263.4 649.5,239.6 651.6,247.1 653.7,253.9 655.8,244.4 658.0,229.6 660.1,258.0 662.2,248.2 664.3,249.4 666.4,278.0 668.5,240.0 670.6,248.5 672.7,252.1 674.9,239.5 677.0,238.9 679.1,243.9 681.2,244.3 683.3,243.5 685.4,243.1 687.5,237.8 689.7,247.1 691.8,249.1 693.9,248.8 696.0,247.2"/><polyline class="line s1" points="64.0,28.0 66.1,29.3 68.2,32.8 70.3,35.6 72.5,39.8 74.6,44.6 76.7,50.9 78.8,57.9 80.9,64.5 83.0,71.9 85.1,78.2 87.3,85.1 89.4,92.2 91.5,99.2 93.6,106.1 95.7,118.3 97.8,131.2 99.9,144.0 102.0,156.1 104.2,167.0 106.3,178.0 108.4,187.9 110.5,197.7 112.6,204.9 114.7,211.5 116.8,217.8 119.0,222.3 121.1,226.0 123.2,230.4 125.3,233.0 127.4,235.9 129.5,236.3 131.6,236.8 133.8,237.8 135.9,239.6 138.0,240.1 140.1,240.6 142.2,240.2 144.3,242.0 146.4,240.9 148.5,242.5 150.7,244.1 152.8,244.5 154.9,243.4 157.0,243.0 159.1,240.6 161.2,242.0 163.3,241.6 165.5,241.2 167.6,240.9 169.7,241.5 171.8,242.0 173.9,242.3 176.0,242.5 178.1,244.2 180.3,242.8 182.4,243.0 184.5,242.9 186.6,244.1 188.7,245.0 190.8,248.0 192.9,247.5 195.1,248.9 197.2,251.0 199.3,251.4 201.4,251.3 203.5,251.2 205.6,249.7 207.7,249.5 209.8,249.2 212.0,250.0 214.1,248.9 216.2,249.5 218.3,248.8 220.4,248.3 222.5,247.1 224.6,246.9 226.8,245.5 228.9,244.1 231.0,243.0 233.1,243.4 235.2,242.6 237.3,243.9 239.4,242.6 241.6,243.6 243.7,242.9 245.8,243.2 247.9,242.2 250.0,241.5 252.1,241.7 254.2,242.7 256.3,241.9 258.5,242.9 260.6,243.2 262.7,245.2 264.8,246.0 266.9,247.5 269.0,247.9 271.1,248.9 273.3,248.5 275.4,249.3 277.5,250.6 279.6,251.6 281.7,252.2 283.8,253.7 285.9,251.8 288.1,253.4 290.2,253.9 292.3,253.5 294.4,252.5 296.5,249.8 298.6,248.6 300.7,247.9 302.8,246.9 305.0,246.7 307.1,245.6 309.2,244.7 311.3,246.3 313.4,245.5 315.5,243.8 317.6,244.2 319.8,244.3 321.9,243.3 324.0,243.8 326.1,244.5 328.2,244.5 330.3,245.8 332.4,247.1 334.6,247.7 336.7,249.0 338.8,250.1 340.9,250.4 343.0,250.4 345.1,252.3 347.2,252.9 349.4,253.7 351.5,252.8 353.6,252.8 355.7,251.4 357.8,252.0 359.9,253.6 362.0,252.6 364.1,251.5 366.3,252.6 368.4,250.2 370.5,250.9 372.6,250.6 374.7,248.9 376.8,247.8 378.9,248.0 381.1,248.6 383.2,249.4 385.3,250.0 387.4,251.4 389.5,248.8 391.6,247.7 393.7,246.9 395.9,246.3 398.0,245.5 400.1,245.9 402.2,244.2 404.3,244.3 406.4,245.1 408.5,244.6 410.6,243.4 412.8,243.5 414.9,243.5 417.0,243.3 419.1,243.5 421.2,244.2 423.3,246.1 425.4,245.6 427.6,245.5 429.7,245.5 431.8,247.7 433.9,248.1 436.0,248.4 438.1,248.3 440.2,248.0 442.4,249.4 444.5,249.0 446.6,248.6 448.7,249.5 450.8,249.6 452.9,250.0 455.0,248.7 457.2,249.6 459.3,250.0 461.4,250.0 463.5,248.7 465.6,249.4 467.7,248.1 469.8,248.4 471.9,250.4 474.1,250.0 476.2,250.0 478.3,250.1 480.4,248.9 482.5,248.6 484.6,246.6 486.7,247.5 488.9,247.5 491.0,247.9 493.1,248.2 495.2,247.3 497.3,247.2 499.4,247.4 501.5,246.6 503.7,245.1 505.8,243.6 507.9,243.2 510.0,244.1 512.1,243.5 514.2,243.8 516.3,245.2 518.4,244.6 520.6,245.9 522.7,246.0 524.8,246.4 526.9,248.3 529.0,249.0 531.1,248.9 533.2,249.2 535.4,250.0 537.5,250.7 539.6,251.0 541.7,249.1 543.8,250.5 545.9,249.4 548.0,251.3 550.2,250.9 552.3,250.0 554.4,250.4 556.5,248.8 558.6,248.2 560.7,247.4 562.8,247.3 564.9,247.3 567.1,246.5 569.2,246.4 571.3,246.1 573.4,246.4 575.5,246.5 577.6,246.7 579.7,246.2 581.9,247.1 584.0,245.9 586.1,244.7 588.2,245.0 590.3,244.9 592.4,245.3 594.5,245.4 596.7,246.1 598.8,246.9 600.9,247.6 603.0,248.8 605.1,249.7 607.2,249.4 609.3,249.3 611.5,248.5 613.6,249.6 615.7,251.8 617.8,251.6 619.9,251.9 622.0,250.5 624.1,250.2 626.2,250.6 628.4,248.0 630.5,247.3 632.6,247.5 634.7,245.6 636.8,246.5 638.9,245.4 641.0,244.9 643.2,245.8 645.3,243.7 647.4,243.8 649.5,244.0 651.6,244.4 653.7,245.5 655.8,245.0 658.0,244.2 660.1,246.6 662.2,246.9 664.3,246.6 666.4,249.4 668.5,247.9 670.6,248.7 672.7,250.0 674.9,248.8 677.0,248.7 679.1,247.4 681.2,247.7 683.3,247.5 685.4,246.8 687.5,246.3 689.7,247.5 691.8,246.9 693.9,246.9 696.0,246.8"/><polyline class="line s2" points="64.0,33.4 114.7,222.2 167.6,236.3 220.4,234.2 273.3,234.5 326.1,234.2 378.9,232.4 431.8,234.4 484.6,232.9 537.5,234.8 590.3,234.0 643.2,234.2 696.0,235.6"/><circle class="dot s2" cx="64.0" cy="33.4" r="3"/><circle class="dot s2" cx="114.7" cy="222.2" r="3"/><circle class="dot s2" cx="167.6" cy="236.3" r="3"/><circle class="dot s2" cx="220.4" cy="234.2" r="3"/><circle class="dot s2" cx="273.3" cy="234.5" r="3"/><circle class="dot s2" cx="326.1" cy="234.2" r="3"/><circle class="dot s2" cx="378.9" cy="232.4" r="3"/><circle class="dot s2" cx="431.8" cy="234.4" r="3"/><circle class="dot s2" cx="484.6" cy="232.9" r="3"/><circle class="dot s2" cx="537.5" cy="234.8" r="3"/><circle class="dot s2" cx="590.3" cy="234.0" r="3"/><circle class="dot s2" cx="643.2" cy="234.2" r="3"/><circle class="dot s2" cx="696.0" cy="235.6" r="3"/></svg><ul class="legend"><li><svg width="30" height="10" aria-hidden="true"><line class="line s0 thin" x1="0" x2="30" y1="5" y2="5"/></svg> train (raw)</li><li><svg width="30" height="10" aria-hidden="true"><line class="line s1" x1="0" x2="30" y1="5" y2="5"/></svg> train (average of 15)</li><li><svg width="30" height="10" aria-hidden="true"><line class="line s2" x1="0" x2="30" y1="5" y2="5"/></svg> validation</li><li><svg width="30" height="10" aria-hidden="true"><line class="ref" x1="0" x2="30" y1="5" y2="5"/></svg> uniform guess ln(51) = 3.932</li></ul><details class="data"><summary>Show the data behind this chart</summary><div class="scroll" tabindex="0"><div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table><caption>Cross-entropy loss during the reference run (sampled steps)</caption><thead><tr><th scope="col">step</th><th scope="col">train (raw)</th><th scope="col">train (average of 15)</th><th scope="col">validation</th></tr></thead><tbody><tr><th scope="row">1</th><td>3.967</td><td>3.967</td><td>3.944</td></tr><tr><th scope="row">25</th><td>3.080</td><td>3.189</td><td>3.143</td></tr><tr><th scope="row">49</th><td>3.093</td><td>3.062</td><td>-</td></tr><tr><th scope="row">73</th><td>3.045</td><td>3.027</td><td>-</td></tr><tr><th scope="row">97</th><td>2.974</td><td>3.036</td><td>-</td></tr><tr><th scope="row">121</th><td>3.075</td><td>3.050</td><td>-</td></tr><tr><th scope="row">145</th><td>3.101</td><td>3.024</td><td>-</td></tr><tr><th scope="row">169</th><td>3.004</td><td>3.053</td><td>-</td></tr><tr><th scope="row">193</th><td>2.996</td><td>3.032</td><td>-</td></tr><tr><th scope="row">217</th><td>2.975</td><td>3.043</td><td>-</td></tr><tr><th scope="row">241</th><td>3.035</td><td>3.042</td><td>-</td></tr><tr><th scope="row">265</th><td>3.081</td><td>3.023</td><td>-</td></tr><tr><th scope="row">289</th><td>3.016</td><td>3.025</td><td>-</td></tr><tr><th scope="row">300</th><td>3.037</td><td>3.039</td><td>3.086</td></tr></tbody></table></div></div></details></figure>
+<figure class="chart" id="chart-gradnorm"><figcaption><strong>Gradient norm of the reference run.</strong> Global L2 norm of the gradient before clipping; the clipping threshold is 1.</figcaption><svg class="chart-svg" viewBox="0 0 720 340" role="img" aria-labelledby="chart-gradnorm-t chart-gradnorm-d" xmlns="http://www.w3.org/2000/svg"><title id="chart-gradnorm-t">Gradient norm of the reference run</title><desc id="chart-gradnorm-d">Global L2 norm of the gradient before clipping; the clipping threshold is 1.</desc><rect class="plot-bg" x="64" y="18" width="632" height="270"/><line class="grid" x1="64" x2="696" y1="214.8" y2="214.8"/><text class="tick" x="56" y="218.8" text-anchor="end">0.50</text><line class="grid" x1="64" x2="696" y1="115.0" y2="115.0"/><text class="tick" x="56" y="119.0" text-anchor="end">1.00</text><line class="grid" x1="167.6" x2="167.6" y1="18" y2="288"/><text class="tick" x="167.6" y="306" text-anchor="middle">50</text><line class="grid" x1="273.3" x2="273.3" y1="18" y2="288"/><text class="tick" x="273.3" y="306" text-anchor="middle">100</text><line class="grid" x1="378.9" x2="378.9" y1="18" y2="288"/><text class="tick" x="378.9" y="306" text-anchor="middle">150</text><line class="grid" x1="484.6" x2="484.6" y1="18" y2="288"/><text class="tick" x="484.6" y="306" text-anchor="middle">200</text><line class="grid" x1="590.3" x2="590.3" y1="18" y2="288"/><text class="tick" x="590.3" y="306" text-anchor="middle">250</text><line class="grid" x1="696.0" x2="696.0" y1="18" y2="288"/><text class="tick" x="696.0" y="306" text-anchor="middle">300</text><line class="axis" x1="64" x2="696" y1="288" y2="288"/><line class="axis" x1="64" x2="64" y1="18" y2="288"/><text class="label" x="380" y="332" text-anchor="middle">step</text><text class="label" transform="translate(16 153) rotate(-90)" text-anchor="middle">gradient norm</text><line class="ref" x1="64" x2="696" y1="115.0" y2="115.0"/><text class="tick" x="692" y="110.0" text-anchor="end">clip threshold 1</text><polyline class="line s0" points="64.0,38.7 66.1,29.7 68.2,28.0 70.3,38.8 72.5,39.6 74.6,60.5 76.7,49.5 78.8,28.7 80.9,50.2 83.0,32.7 85.1,71.4 87.3,73.3 89.4,85.4 91.5,86.6 93.6,120.3 95.7,148.7 97.8,144.4 99.9,176.8 102.0,192.5 104.2,245.6 106.3,253.9 108.4,244.8 110.5,240.7 112.6,201.0 114.7,192.0 116.8,195.7 119.0,196.5 121.1,222.9 123.2,246.9 125.3,245.2 127.4,252.6 129.5,243.3 131.6,224.9 133.8,227.5 135.9,214.1 138.0,232.8 140.1,224.5 142.2,258.8 144.3,248.9 146.4,230.3 148.5,237.2 150.7,245.1 152.8,239.8 154.9,232.9 157.0,225.4 159.1,193.1 161.2,265.4 163.3,258.6 165.5,238.7 167.6,236.1 169.7,234.2 171.8,259.3 173.9,229.7 176.0,256.3 178.1,262.0 180.3,242.0 182.4,259.5 184.5,234.2 186.6,242.5 188.7,262.6 190.8,244.0 192.9,253.0 195.1,247.1 197.2,264.0 199.3,235.2 201.4,257.3 203.5,259.8 205.6,233.8 207.7,247.9 209.8,240.3 212.0,250.7 214.1,238.6 216.2,243.0 218.3,240.3 220.4,244.6 222.5,253.8 224.6,252.5 226.8,247.7 228.9,255.7 231.0,219.4 233.1,252.1 235.2,263.6 237.3,248.1 239.4,231.5 241.6,253.9 243.7,236.5 245.8,244.1 247.9,240.7 250.0,254.2 252.1,252.4 254.2,241.5 256.3,240.5 258.5,260.7 260.6,256.8 262.7,243.4 264.8,250.0 266.9,254.0 269.0,276.2 271.1,247.7 273.3,233.8 275.4,232.7 277.5,245.6 279.6,252.0 281.7,239.4 283.8,246.9 285.9,237.7 288.1,254.5 290.2,244.8 292.3,239.3 294.4,240.0 296.5,253.7 298.6,245.1 300.7,253.8 302.8,221.4 305.0,222.9 307.1,244.9 309.2,244.4 311.3,236.6 313.4,261.3 315.5,243.7 317.6,245.8 319.8,245.3 321.9,246.2 324.0,261.5 326.1,246.0 328.2,213.6 330.3,267.3 332.4,246.6 334.6,234.7 336.7,220.6 338.8,244.1 340.9,268.7 343.0,241.6 345.1,228.5 347.2,239.3 349.4,229.3 351.5,225.5 353.6,213.8 355.7,227.1 357.8,251.9 359.9,201.6 362.0,256.9 364.1,247.0 366.3,247.4 368.4,231.5 370.5,241.0 372.6,242.0 374.7,260.3 376.8,259.4 378.9,253.2 381.1,256.5 383.2,235.0 385.3,240.7 387.4,242.7 389.5,231.3 391.6,261.0 393.7,249.0 395.9,261.7 398.0,237.9 400.1,238.2 402.2,233.4 404.3,239.8 406.4,257.9 408.5,254.4 410.6,256.2 412.8,236.1 414.9,240.2 417.0,232.9 419.1,255.4 421.2,250.8 423.3,251.1 425.4,265.6 427.6,247.8 429.7,237.1 431.8,229.8 433.9,235.8 436.0,245.0 438.1,245.4 440.2,253.9 442.4,248.9 444.5,265.1 446.6,253.6 448.7,270.3 450.8,270.8 452.9,241.1 455.0,257.5 457.2,236.6 459.3,260.0 461.4,256.7 463.5,247.6 465.6,273.7 467.7,246.5 469.8,249.3 471.9,249.8 474.1,265.2 476.2,249.4 478.3,248.5 480.4,259.2 482.5,249.8 484.6,207.4 486.7,271.0 488.9,266.6 491.0,254.3 493.1,239.3 495.2,254.0 497.3,259.1 499.4,226.6 501.5,256.1 503.7,249.6 505.8,256.5 507.9,260.0 510.0,242.3 512.1,246.8 514.2,255.4 516.3,236.5 518.4,248.2 520.6,222.8 522.7,251.8 524.8,239.3 526.9,238.7 529.0,259.4 531.1,246.4 533.2,253.0 535.4,261.0 537.5,254.0 539.6,251.7 541.7,223.7 543.8,232.2 545.9,238.6 548.0,238.2 550.2,248.6 552.3,245.9 554.4,271.7 556.5,249.5 558.6,243.5 560.7,246.0 562.8,242.8 564.9,257.5 567.1,246.2 569.2,259.8 571.3,258.1 573.4,226.0 575.5,245.9 577.6,265.3 579.7,268.3 581.9,234.9 584.0,254.4 586.1,278.0 588.2,233.1 590.3,255.3 592.4,254.3 594.5,265.4 596.7,245.6 598.8,245.7 600.9,271.9 603.0,245.2 605.1,248.7 607.2,253.6 609.3,238.3 611.5,243.7 613.6,241.7 615.7,253.7 617.8,253.9 619.9,257.4 622.0,240.5 624.1,259.9 626.2,272.5 628.4,237.6 630.5,268.4 632.6,264.0 634.7,249.3 636.8,239.5 638.9,232.2 641.0,235.2 643.2,255.3 645.3,238.2 647.4,257.0 649.5,251.5 651.6,247.3 653.7,224.7 655.8,246.5 658.0,260.2 660.1,247.5 662.2,258.1 664.3,255.7 666.4,228.9 668.5,270.9 670.6,245.2 672.7,276.7 674.9,250.9 677.0,230.7 679.1,231.2 681.2,241.8 683.3,259.2 685.4,252.6 687.5,250.7 689.7,228.5 691.8,251.1 693.9,270.2 696.0,269.1"/></svg><ul class="legend"><li><svg width="30" height="10" aria-hidden="true"><line class="line s0" x1="0" x2="30" y1="5" y2="5"/></svg> gradient norm</li><li><svg width="30" height="10" aria-hidden="true"><line class="ref" x1="0" x2="30" y1="5" y2="5"/></svg> clip threshold 1</li></ul><details class="data"><summary>Show the data behind this chart</summary><div class="scroll" tabindex="0"><div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table><caption>Gradient norm of the reference run (sampled steps)</caption><thead><tr><th scope="col">step</th><th scope="col">gradient norm</th></tr></thead><tbody><tr><th scope="row">1</th><td>1.383</td></tr><tr><th scope="row">25</th><td>0.614</td></tr><tr><th scope="row">49</th><td>0.380</td></tr><tr><th scope="row">73</th><td>0.358</td></tr><tr><th scope="row">97</th><td>0.303</td></tr><tr><th scope="row">121</th><td>0.344</td></tr><tr><th scope="row">145</th><td>0.416</td></tr><tr><th scope="row">169</th><td>0.296</td></tr><tr><th scope="row">193</th><td>0.327</td></tr><tr><th scope="row">217</th><td>0.460</td></tr><tr><th scope="row">241</th><td>0.283</td></tr><tr><th scope="row">265</th><td>0.371</td></tr><tr><th scope="row">289</th><td>0.189</td></tr><tr><th scope="row">300</th><td>0.227</td></tr></tbody></table></div></div></details></figure>
+<p>The reference configuration runs 300 steps in 3.6 s on <code>mps</code>. Training loss falls from about 3.97 to 3.04 and validation loss from 3.94 to 3.09. In this short run the model only learns the character frequencies of the corpus; see the explanation for the plateau and the later drop in longer runs.</p>
+<h2 id="checkpoints">Checkpoints</h2>
+<figure class="source"><figcaption>training/checkpoint.py, lines 59-82: training.checkpoint.save_checkpoint</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">save_checkpoint</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">GPT</span><span class="p">,</span>
+    <span class="n">tokenizer</span><span class="p">,</span>
+    <span class="n">train_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TrainConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">history</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Optimizer</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"model"</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Write a checkpoint and return its path (timestamped unless ``path`` is given)."""</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">new_checkpoint_path</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">)</span>
+    <span class="n">target</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"version"</span><span class="p">:</span> <span class="n">CHECKPOINT_VERSION</span><span class="p">,</span>
+        <span class="s2">"model_config"</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span>
+        <span class="s2">"model_state"</span><span class="p">:</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span>
+        <span class="s2">"tokenizer"</span><span class="p">:</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span>
+        <span class="s2">"train_config"</span><span class="p">:</span> <span class="n">train_config</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">if</span> <span class="n">train_config</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"history"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">history</span> <span class="ow">or</span> <span class="p">[]),</span>
+        <span class="s2">"optimizer_state"</span><span class="p">:</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span> <span class="k">if</span> <span class="n">optimizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">target</span>
+</code></pre></div>
+</figure>
+<figure class="source"><figcaption>training/checkpoint.py, lines 85-125: training.checkpoint.load_checkpoint</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_checkpoint</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Load a checkpoint and rebuild its objects.</span>
+
+<span class="sd">    Returns a dict with ``model`` (eval mode, on ``device``), ``tokenizer``,</span>
+<span class="sd">    ``train_config`` (or None), ``history`` and ``optimizer_state`` (or None).</span>
+<span class="sd">    Raises :class:`CheckpointError` for any problem with the file.</span>
+<span class="sd">    """</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="n">CheckpointError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"checkpoint not found: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># weights_only=True refuses arbitrary pickled code: safe for untrusted files.</span>
+        <span class="n">raw</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">map_location</span><span class="o">=</span><span class="s2">"cpu"</span><span class="p">,</span> <span class="n">weights_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>  <span class="c1"># corrupted or not a torch file</span>
+        <span class="k">raise</span> <span class="n">CheckpointError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"cannot read checkpoint </span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">CheckpointError</span><span class="p">(</span><span class="s2">"checkpoint has an unexpected structure"</span><span class="p">)</span>
+    <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">REQUIRED_KEYS</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">raw</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CheckpointError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"checkpoint is missing keys: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">raw</span><span class="p">[</span><span class="s2">"version"</span><span class="p">]</span> <span class="o">!=</span> <span class="n">CHECKPOINT_VERSION</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CheckpointError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unsupported checkpoint version </span><span class="si">{</span><span class="n">raw</span><span class="p">[</span><span class="s1">'version'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">GPT</span><span class="p">(</span><span class="n">GPTConfig</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="s2">"model_config"</span><span class="p">]))</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="s2">"model_state"</span><span class="p">])</span>
+        <span class="n">tokenizer</span> <span class="o">=</span> <span class="n">tokenizer_from_dict</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="s2">"tokenizer"</span><span class="p">])</span>
+        <span class="n">train_cfg</span> <span class="o">=</span> <span class="n">TrainConfig</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="s2">"train_config"</span><span class="p">])</span> <span class="k">if</span> <span class="n">raw</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"train_config"</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CheckpointError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"checkpoint contents are inconsistent: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+    <span class="k">if</span> <span class="n">model</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">vocab_size</span> <span class="o">!=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">vocab_size</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CheckpointError</span><span class="p">(</span><span class="s2">"model vocabulary size does not match the tokenizer"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">device</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"model"</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span>
+        <span class="s2">"tokenizer"</span><span class="p">:</span> <span class="n">tokenizer</span><span class="p">,</span>
+        <span class="s2">"train_config"</span><span class="p">:</span> <span class="n">train_cfg</span><span class="p">,</span>
+        <span class="s2">"history"</span><span class="p">:</span> <span class="n">raw</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"history"</span><span class="p">,</span> <span class="p">[]),</span>
+        <span class="s2">"optimizer_state"</span><span class="p">:</span> <span class="n">raw</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"optimizer_state"</span><span class="p">),</span>
+    <span class="p">}</span>
+</code></pre></div>
+</figure>
+<figure class="flow"><figcaption>Checkpoint dictionary (torch.save, loaded with weights_only=True)</figcaption><pre tabindex="0" role="region" aria-label="Flow diagram"><code>version          1
+model_config     GPTConfig.to_dict()
+model_state      model.state_dict()      (the sinusoidal table is not stored)
+tokenizer        tokenizer.to_dict()     (a BPE merge trace is not stored)
+train_config     TrainConfig.to_dict()
+history          list of the metrics dictionaries
+optimizer_state  optimizer.state_dict()</code></pre></figure>
+<p>Files are written to <code>OUTPUT_DIR</code> (default <code>output/</code>) as <code>YYYYmmdd_HHMMSS_&lt;name&gt;.pt</code>; a <code>_N</code> suffix is added when two saves fall in the same second, so a file is never overwritten. A missing, corrupted or incompatible file raises <code>CheckpointError</code>.</p>
+<h2 id="integration-points">Integration points</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Interaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ui.lab.prepare_data</code></td>
+<td>builds the corpus, encodes it and splits it; trains on all data if validation would be too small</td>
+</tr>
+<tr>
+<td><code>ui.lab.run_training</code></td>
+<td>iterates <code>train(...)</code>, appends each dictionary to <code>state["history"]</code>, and polls the stop flag through <code>should_stop</code></td>
+</tr>
+<tr>
+<td><code>pages/page_training.py</code></td>
+<td>draws the live curves from the history and offers Start, Stop, Resume and checkpoint buttons</td>
+</tr>
+<tr>
+<td><code>llm.transformer.GPT.forward</code></td>
+<td>supplies the loss through <code>model(x, y)</code></td>
+</tr>
+<tr>
+<td><code>config.load_settings</code></td>
+<td>provides <code>input_dir</code>, <code>output_dir</code> and the device</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="environment-variables">Environment variables</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Used by</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>INPUT_DIR</code></td>
+<td><code>training.data</code></td>
+<td>folder scanned recursively for extra <code>.txt</code> and <code>.md</code> training text</td>
+</tr>
+<tr>
+<td><code>OUTPUT_DIR</code></td>
+<td><code>training.checkpoint</code></td>
+<td>folder receiving timestamped checkpoints</td>
+</tr>
+<tr>
+<td><code>DEVICE</code></td>
+<td><code>config.resolve_device</code></td>
+<td><code>auto</code>, <code>cpu</code>, <code>cuda</code> or <code>mps</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="runtime-behaviour">Runtime behaviour</h2>
+<ul>
+<li>A non-finite loss raises <code>FloatingPointError</code> with the advice to lower the learning rate. A <code>block_size</code> larger than the model context raises <code>ValueError</code> before any step runs.</li>
+<li><code>should_stop</code> is polled before every step, so a stop request ends the generator cleanly after the current step.</li>
+<li>The batch generator is seeded with <code>cfg.seed + start_step</code>, so the same configuration gives the same losses; the reference run gives identical numbers on CPU and on MPS.</li>
+<li><strong>Resume caveat 1: the schedule restarts.</strong> <code>train</code> indexes the schedule from 0 on every call, and <code>start_step</code> only shifts the step label and the seed. After a resume the learning rate jumps back to the warm-up value.</li>
+<li><strong>Resume caveat 2: the step budget is added.</strong> Resuming runs another <code>cfg.steps</code> steps, so a 30-step run plus a resume gives 60 steps in the history.</li>
+<li><strong>Resume caveat 3: the optimiser is not restored from a file.</strong> <code>optimizer_state</code> is saved and returned by <code>load_checkpoint</code>, but nothing restores it. A loaded checkpoint sets the session optimiser to <code>None</code>, so the Resume button is available within a session but not after loading a file.</li>
+</ul>
+<h2 id="tests">Tests</h2>
+<p>The suite checks that the hand-written Adam and SGD match <code>torch.optim</code> step for step, that the first Adam update is about the learning rate regardless of gradient scale, that clipping rescales to the requested norm and reports the pre-clip value, the schedule values at the boundaries, window shapes and the one-token shift between <code>x</code> and <code>y</code>, deterministic batches for a given seed, the stop flag, error cases, the checkpoint round trip and the non-overwrite rule, and that a tiny model's loss decreases.</p>
+<h2 id="common-pitfalls">Common pitfalls</h2>
+<ul>
+<li><strong>Judging a run by the first 300 steps.</strong> The loss plateau near the unigram entropy is expected; longer runs drop sharply after it.</li>
+<li><strong>Assuming resume continues the schedule.</strong> It does not; see the caveats above.</li>
+<li><strong>A very high learning rate.</strong> The loop stops with <code>FloatingPointError</code> rather than continuing with NaNs.</li>
+<li><strong>Window longer than the context.</strong> Lower <code>block_size</code> or raise the model context.</li>
+</ul>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>

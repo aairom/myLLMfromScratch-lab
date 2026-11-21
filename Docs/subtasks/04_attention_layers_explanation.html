@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>4. Attention, multi-head attention, LayerNorm and the feed-forward network – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 4 of 10 · Scientific explanation</p>
+<h1>4. Attention, multi-head attention, LayerNorm and the feed-forward network</h1>
+<p class="lede">Scaled dot-product attention with a causal mask, heads, layer normalisation and the GELU MLP.</p>
+<ul class="badges" aria-label="Key facts"><li>1,433 words</li><li>9 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="04_attention_layers_explanation.html" aria-current="page">Explanation</a><a href="04_attention_layers_implementation_guide.html">Implementation guide</a><a href="03_embeddings_positional_explanation.html">← 3. Embeddings and positional encoding</a><a href="05_gpt_model_explanation.html">5. Full transformer (GPT) and generation →</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#abstract">Abstract</a></li><li><a href="#scaled-dot-product-attention">Scaled dot-product attention</a><ul><li><a href="#the-idea">The idea</a></li><li><a href="#why-divide-by-dk">Why divide by dk</a></li><li><a href="#the-causal-mask">The causal mask</a></li><li><a href="#cost">Cost</a></li></ul></li><li><a href="#multi-head-attention">Multi-head attention</a></li><li><a href="#layer-normalisation">Layer normalisation</a><ul><li><a href="#definition">Definition</a></li><li><a href="#why-it-fits-language-models">Why it fits language models</a></li><li><a href="#pre-norm-and-post-norm">Pre-norm and post-norm</a></li></ul></li><li><a href="#the-position-wise-feed-forward-network">The position-wise feed-forward network</a><ul><li><a href="#the-activation-function">The activation function</a></li></ul></li><li><a href="#what-the-pieces-do-together">What the pieces do together</a></li><li><a href="#limitations">Limitations</a></li><li><a href="#where-to-go-next">Where to go next</a></li><li><a href="#references">References</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_explanation.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_explanation.html">Tokenization</a></li><li><a href="03_embeddings_positional_explanation.html">Embeddings and positional encoding</a></li><li aria-current="step"><a href="04_attention_layers_explanation.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_explanation.html">Full transformer (GPT) and generation</a></li><li><a href="06_training_pipeline_explanation.html">Training pipeline</a></li><li><a href="07_visualization_explanation.html">Visualization layer</a></li><li><a href="08_educational_content_explanation.html">Educational content layer</a></li><li><a href="09_streamlit_app_explanation.html">Streamlit application and learning pages</a></li><li><a href="10_scripts_docs_compliance_explanation.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="abstract">Abstract</h2>
+<p>These four components are the working parts of every transformer block. <strong>Attention</strong> lets each position read information from the others. <strong>Multiple heads</strong> let it read several kinds of information at once. <strong>Layer normalisation</strong> keeps activations at a usable scale as layers are stacked, and the <strong>feed-forward network</strong> transforms each position on its own. This document derives each from first principles, explains why the <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>1</mn><mo>&#x0002F;</mo><msqrt><mrow><msub><mi>d</mi><mi>k</mi></msub></mrow></msqrt></mrow></math> scaling and the causal mask are needed, and ties the algebra to the parameter counts of the default model (33,280 parameters in attention, 66,176 in the feed-forward layers).</p>
+<h2 id="scaled-dot-product-attention">Scaled dot-product attention</h2>
+<h3 id="the-idea">The idea</h3>
+<p>Attention was introduced for machine translation by Bahdanau, Cho and Bengio (2015) as a soft alignment between source and target words, and became the sole sequence-mixing mechanism in the Transformer (Vaswani et al., 2017). For a sequence of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>T</mi></mrow></math> vectors, every position produces three vectors with learned linear maps:</p>
+<ul>
+<li>a <strong>query</strong> <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x1D42A;</mi><mi>t</mi></msub></mrow></math>: what this position is looking for;</li>
+<li>a <strong>key</strong> <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x1D424;</mi><mi>s</mi></msub></mrow></math>: what position <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>s</mi></mrow></math> offers to be found by;</li>
+<li>a <strong>value</strong> <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x1D42F;</mi><mi>s</mi></msub></mrow></math>: the content position <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>s</mi></mrow></math> passes on if selected.</li>
+</ul>
+<p>Stacking them as matrices <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>Q</mi><mo>&#x0002C;</mo><mi>K</mi><mo>&#x0002C;</mo><mi>V</mi><mo>&#x02208;</mo><msup><mi>&#x0211D;</mi><mrow><mi>T</mi><mo>&#x000D7;</mo><msub><mi>d</mi><mi>k</mi></msub></mrow></msup></mrow></math>, the output is</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mo>Attention</mo><mo stretchy="false">&#x00028;</mo><mi>Q</mi><mo>&#x0002C;</mo><mi>K</mi><mo>&#x0002C;</mo><mi>V</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mo>softmax</mo><mspace width="negativethinmathspace" /><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mfrac><mrow><mi>Q</mi><msup><mi>K</mi><mrow><mo>&#x022A4;</mo></mrow></msup></mrow><mrow><msqrt><mrow><msub><mi>d</mi><mi>k</mi></msub></mrow></msqrt></mrow></mfrac><mo>&#x0002B;</mo><mi>M</mi><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow><mi>V</mi><mo>&#x0002E;</mo></mrow></math></div>
+<p>Row <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>t</mi></mrow></math> of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>Q</mi><msup><mi>K</mi><mo>&#x022A4;</mo></msup></mrow></math> contains the dot products of query <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>t</mi></mrow></math> with every key. The softmax turns that row into a probability distribution over positions (the <em>attention weights</em>), and the output at <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>t</mi></mrow></math> is the corresponding weighted average of the value vectors. <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>M</mi></mrow></math> is the mask described below.</p>
+<h3 id="why-divide-by-dk">Why divide by <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msqrt><mrow><msub><mi>d</mi><mi>k</mi></msub></mrow></msqrt></mrow></math></h3>
+<p>Suppose the components of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x1D42A;</mi></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x1D424;</mi></mrow></math> are independent with zero mean and unit variance. Then the dot product <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x1D42A;</mi><mo>&#x000B7;</mo><mi>&#x1D424;</mi><mo>&#x0003D;</mo><msubsup><mo>&#x02211;</mo><mrow><mi>i</mi><mo>&#x0003D;</mo><mn>1</mn></mrow><mrow><msub><mi>d</mi><mi>k</mi></msub></mrow></msubsup><msub><mi>q</mi><mi>i</mi></msub><msub><mi>k</mi><mi>i</mi></msub></mrow></math> has</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>&#x1D53C;</mi><mo stretchy="false">[</mo><mi>&#x1D42A;</mi><mo>&#x000B7;</mo><mi>&#x1D424;</mi><mo stretchy="false">]</mo><mo>&#x0003D;</mo><mn>0</mn><mo>&#x0002C;</mo><mspace width="2em" /><mo>Var</mo><mo stretchy="false">[</mo><mi>&#x1D42A;</mi><mo>&#x000B7;</mo><mi>&#x1D424;</mi><mo stretchy="false">]</mo><mo>&#x0003D;</mo><msub><mi>d</mi><mi>k</mi></msub><mo>&#x0002E;</mo></mrow></math></div>
+<p>Its standard deviation grows like <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msqrt><mrow><msub><mi>d</mi><mi>k</mi></msub></mrow></msqrt></mrow></math>. Large scores push the softmax into a saturated regime in which one weight is almost 1 and the others almost 0, and the gradient through the softmax nearly vanishes. Dividing by <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msqrt><mrow><msub><mi>d</mi><mi>k</mi></msub></mrow></msqrt></mrow></math> restores unit variance. This was checked numerically for <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>&#x02208;</mo><mo stretchy="false">&#x0007B;</mo><mn>4</mn><mo>&#x0002C;</mo><mn>16</mn><mo>&#x0002C;</mo><mn>64</mn><mo>&#x0002C;</mo><mn>256</mn><mo stretchy="false">&#x0007D;</mo></mrow></math>: the variance of the raw dot product is close to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>d</mi><mi>k</mi></msub></mrow></math> in every case, and the variance after scaling is about 1.00 in every case.</p>
+<h3 id="the-causal-mask">The causal mask</h3>
+<p>A language model predicts token <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>t</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></math> from tokens <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>1</mn><mo>&#x0002C;</mo><mo>&#x02026;</mo><mo>&#x0002C;</mo><mi>t</mi></mrow></math>. If position <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>t</mi></mrow></math> could attend to later positions, the answer would be available in the input and the model would learn to copy rather than predict. The mask enforces causality:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>M</mi><mrow><mi>t</mi><mi>s</mi></mrow></msub><mo>&#x0003D;</mo><mrow><mo stretchy="true" fence="true" form="prefix">&#x0007B;</mo><mtable><mtr><mtd columnalign="left"><mn>0</mn></mtd><mtd columnalign="left"><mi>s</mi><mo>&#x02264;</mo><mi>t</mi></mtd></mtr><mtr><mtd columnalign="left"><mo>&#x02212;</mo><mo>&#x0221E;</mo></mtd><mtd columnalign="left"><mi>s</mi><mo>&#x0003E;</mo><mi>t</mi><mo>&#x0002E;</mo></mtd></mtr></mtable></mrow></mrow></math></div>
+<p>Adding <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02212;</mo><mo>&#x0221E;</mo></mrow></math> before the softmax gives masked positions exactly zero weight. The attention matrix is therefore lower-triangular, and row <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>t</mi></mrow></math> always contains at least the position <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>t</mi></mrow></math> itself, so no row is entirely masked in normal use. The implementation still converts a hypothetical fully masked row to zeros instead of NaN.</p>
+<div class="admonition note">
+<p class="admonition-title">Causality is a testable property</p>
+<p>Changing any token after position <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>t</mi></mrow></math> must leave all outputs at positions <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02264;</mo><mi>t</mi></mrow></math> unchanged. The test suite checks exactly this, which is stronger than inspecting the mask visually.</p>
+</div>
+<h3 id="cost">Cost</h3>
+<p>The score matrix has <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>T</mi><mn>2</mn></msup></mrow></math> entries per head, so time and memory grow quadratically with the sequence length. For the context of 64 tokens this is negligible; for long documents it is the central bottleneck that motivates sparse and linear attention variants (Child et al., 2019; Katharopoulos et al., 2020).</p>
+<h2 id="multi-head-attention">Multi-head attention</h2>
+<p>A single attention distribution can express only one weighting of the past at a time. Multi-head attention runs <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi></mrow></math> attentions in parallel on lower-dimensional projections and combines the results:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mo>head</mo><mi>i</mi></msub><mo>&#x0003D;</mo><mo>Attention</mo><mo stretchy="false">&#x00028;</mo><mi>X</mi><msubsup><mi>W</mi><mi>i</mi><mrow><mi>Q</mi></mrow></msubsup><mo>&#x0002C;</mo><mi>X</mi><msubsup><mi>W</mi><mi>i</mi><mrow><mi>K</mi></mrow></msubsup><mo>&#x0002C;</mo><mi>X</mi><msubsup><mi>W</mi><mi>i</mi><mrow><mi>V</mi></mrow></msubsup><mo stretchy="false">&#x00029;</mo><mo>&#x0002C;</mo><mspace width="2em" /><mo>MHA</mo><mo stretchy="false">&#x00028;</mo><mi>X</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mo>Concat</mo><mo stretchy="false">&#x00028;</mo><msub><mo>head</mo><mn>1</mn></msub><mo>&#x0002C;</mo><mo>&#x02026;</mo><mo>&#x0002C;</mo><msub><mo>head</mo><mi>h</mi></msub><mo stretchy="false">&#x00029;</mo><mspace width="0.167em" /><msup><mi>W</mi><mrow><mi>O</mi></mrow></msup><mo>&#x0002C;</mo></mrow></math></div>
+<p>with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>&#x0003D;</mo><msub><mi>d</mi><mrow><mtext>model</mtext></mrow></msub><mo>&#x0002F;</mo><mi>h</mi></mrow></math>. For the default model <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>d</mi><mrow><mtext>model</mtext></mrow></msub><mo>&#x0003D;</mo><mn>64</mn></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>h</mi><mo>&#x0003D;</mo><mn>4</mn></mrow></math>, so each head has <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>&#x0003D;</mo><mn>16</mn></mrow></math> dimensions.</p>
+<p><strong>Cost is unchanged.</strong> Splitting the width into heads keeps the total size of the projections the same as one full-width head: four <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi><mo>&#x000D7;</mo><mi>d</mi></mrow></math> matrices (<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>W</mi><mi>Q</mi></msup><mo>&#x0002C;</mo><msup><mi>W</mi><mi>K</mi></msup><mo>&#x0002C;</mo><msup><mi>W</mi><mi>V</mi></msup><mo>&#x0002C;</mo><msup><mi>W</mi><mi>O</mi></msup></mrow></math>) plus biases, that is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>4</mn><mo stretchy="false">&#x00028;</mo><msup><mi>d</mi><mn>2</mn></msup><mo>&#x0002B;</mo><mi>d</mi><mo stretchy="false">&#x00029;</mo></mrow></math> parameters, which is 16,640 per layer for <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi><mo>&#x0003D;</mo><mn>64</mn></mrow></math>. Heads are therefore a way to <em>specialise</em> the same capacity, not to add more.</p>
+<p><strong>What heads learn.</strong> Analyses of trained transformers (Clark et al., 2019; Voita et al., 2019) found heads that attend to the previous token, to the same word elsewhere, to syntactic partners, or to separators; some heads can be removed with little loss. In the very small model used here the picture after 300 training steps is modest. Measured on the first 48 characters of the corpus, averaging over heads and over positions 8 and later, the entropy of the attention distribution is about 3.25 nats at initialisation, which equals the entropy of a perfectly uniform distribution over the visible past. After training, layer 1 is still essentially uniform (3.25 nats), while layer 0 has become sharper (about 2.76 nats, and its largest weight rises from about 0.04 to about 0.16). So only the first layer has begun to favour particular positions; do not expect the clean head specialisation seen in large models.</p>
+<h2 id="layer-normalisation">Layer normalisation</h2>
+<h3 id="definition">Definition</h3>
+<p>Deep networks train more easily when each layer's inputs stay in a stable range. Ba, Kiros and Hinton (2016) proposed normalising across the <em>features of one token</em> rather than across the batch. For a vector <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x1D431;</mi><mo>&#x02208;</mo><msup><mi>&#x0211D;</mi><mi>d</mi></msup></mrow></math>:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>&#x003BC;</mi><mo>&#x0003D;</mo><mfrac><mn>1</mn><mi>d</mi></mfrac><munderover><mo>&#x02211;</mo><mrow><mi>j</mi><mo>&#x0003D;</mo><mn>1</mn></mrow><mrow><mi>d</mi></mrow></munderover><msub><mi>x</mi><mi>j</mi></msub><mo>&#x0002C;</mo><mspace width="2em" /><msup><mi>&#x003C3;</mi><mn>2</mn></msup><mo>&#x0003D;</mo><mfrac><mn>1</mn><mi>d</mi></mfrac><munderover><mo>&#x02211;</mo><mrow><mi>j</mi><mo>&#x0003D;</mo><mn>1</mn></mrow><mrow><mi>d</mi></mrow></munderover><mo stretchy="false">&#x00028;</mo><msub><mi>x</mi><mi>j</mi></msub><mo>&#x02212;</mo><mi>&#x003BC;</mi><msup><mo stretchy="false">&#x00029;</mo><mn>2</mn></msup><mo>&#x0002C;</mo><mspace width="2em" /><msub><mover accent="true"><mrow><mi>x</mi></mrow><mo>&#x0005E;</mo></mover><mi>j</mi></msub><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>x</mi><mi>j</mi></msub><mo>&#x02212;</mo><mi>&#x003BC;</mi></mrow><mrow><msqrt><mrow><msup><mi>&#x003C3;</mi><mn>2</mn></msup><mo>&#x0002B;</mo><mi>&#x003B5;</mi></mrow></msqrt></mrow></mfrac><mo>&#x0002C;</mo><mspace width="2em" /><msub><mi>y</mi><mi>j</mi></msub><mo>&#x0003D;</mo><msub><mi>&#x003B3;</mi><mi>j</mi></msub><msub><mover accent="true"><mrow><mi>x</mi></mrow><mo>&#x0005E;</mo></mover><mi>j</mi></msub><mo>&#x0002B;</mo><msub><mi>&#x003B2;</mi><mi>j</mi></msub><mo>&#x0002E;</mo></mrow></math></div>
+<p>The variance is the <em>biased</em> estimate (division by <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi></mrow></math>), <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B5;</mi><mo>&#x0003D;</mo><msup><mn>10</mn><mrow><mo>&#x02212;</mo><mn>5</mn></mrow></msup></mrow></math> prevents division by zero, and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B3;</mi><mo>&#x0002C;</mo><mi>&#x003B2;</mi><mo>&#x02208;</mo><msup><mi>&#x0211D;</mi><mi>d</mi></msup></mrow></math> are learned scale and shift, initialised to 1 and 0. A worked example for <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x1D431;</mi><mo>&#x0003D;</mo><mo stretchy="false">&#x00028;</mo><mn>1</mn><mo>&#x0002C;</mo><mn>2</mn><mo>&#x0002C;</mo><mn>3</mn><mo>&#x0002C;</mo><mn>4</mn><mo stretchy="false">&#x00029;</mo></mrow></math>: <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003BC;</mi><mo>&#x0003D;</mo><mn>2.5</mn></mrow></math>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>&#x003C3;</mi><mn>2</mn></msup><mo>&#x0003D;</mo><mn>1.25</mn></mrow></math>, and the normalised vector is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mn>1.342</mn><mo>&#x0002C;</mo><mo>&#x02212;</mo><mn>0.447</mn><mo>&#x0002C;</mo><mn>0.447</mn><mo>&#x0002C;</mo><mn>1.342</mn><mo stretchy="false">&#x00029;</mo></mrow></math>.</p>
+<h3 id="why-it-fits-language-models">Why it fits language models</h3>
+<p>Unlike batch normalisation, the statistics depend on a single token, so the computation is identical during training and inference, does not depend on batch size, and works for sequences of any length. Each LayerNorm has <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>2</mn><mi>d</mi></mrow></math> parameters; the default model has 640 in total (two per block plus one final).</p>
+<h3 id="pre-norm-and-post-norm">Pre-norm and post-norm</h3>
+<p>The original Transformer applied the normalisation <em>after</em> each sub-layer (post-norm). GPT-2 and most later models apply it <em>before</em> the sub-layer, inside the residual branch (pre-norm). Xiong et al. (2020) showed that pre-norm keeps gradients well-scaled at initialisation and removes the need for a long learning-rate warm-up. This project is <strong>pre-norm</strong>: the block computes <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x1D431;</mi><mo>&#x0002B;</mo><mo>Sublayer</mo><mo stretchy="false">&#x00028;</mo><mo>LN</mo><mo stretchy="false">&#x00028;</mo><mi>&#x1D431;</mi><mo stretchy="false">&#x00029;</mo><mo stretchy="false">&#x00029;</mo></mrow></math>, which the next sub-task assembles.</p>
+<h2 id="the-position-wise-feed-forward-network">The position-wise feed-forward network</h2>
+<p>Attention is a weighted <em>average</em>, which is linear in the values. The non-linearity of a transformer lives in the feed-forward network, applied to each position independently with the same weights:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mo>FFN</mo><mo stretchy="false">&#x00028;</mo><mi>&#x1D431;</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msub><mi>W</mi><mn>2</mn></msub><mspace width="0.167em" /><mi>&#x003D5;</mi><mo stretchy="false">&#x00028;</mo><msub><mi>W</mi><mn>1</mn></msub><mi>&#x1D431;</mi><mo>&#x0002B;</mo><msub><mi>&#x1D41B;</mi><mn>1</mn></msub><mo stretchy="false">&#x00029;</mo><mo>&#x0002B;</mo><msub><mi>&#x1D41B;</mi><mn>2</mn></msub><mo>&#x0002C;</mo><mspace width="2em" /><msub><mi>W</mi><mn>1</mn></msub><mo>&#x02208;</mo><msup><mi>&#x0211D;</mi><mrow><msub><mi>d</mi><mrow><mi>f</mi><mi>f</mi></mrow></msub><mo>&#x000D7;</mo><mi>d</mi></mrow></msup><mo>&#x0002C;</mo><mspace width="0.278em" /><msub><mi>W</mi><mn>2</mn></msub><mo>&#x02208;</mo><msup><mi>&#x0211D;</mi><mrow><mi>d</mi><mo>&#x000D7;</mo><msub><mi>d</mi><mrow><mi>f</mi><mi>f</mi></mrow></msub></mrow></msup><mo>&#x0002C;</mo><mspace width="0.278em" /><msub><mi>d</mi><mrow><mi>f</mi><mi>f</mi></mrow></msub><mo>&#x0003D;</mo><mn>4</mn><mi>d</mi><mo>&#x0002E;</mo></mrow></math></div>
+<p>For the default model <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>d</mi><mrow><mi>f</mi><mi>f</mi></mrow></msub><mo>&#x0003D;</mo><mn>256</mn></mrow></math>, which gives 33,088 parameters per layer, about twice the attention parameters of the same layer. Feed-forward layers hold most of a transformer's parameters; Geva et al. (2021) interpret them as key-value memories that store associations learned from the data.</p>
+<h3 id="the-activation-function">The activation function</h3>
+<p>The default activation is GELU (Hendrycks and Gimpel, 2016), which weights an input by the probability that a standard normal variable is below it:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mo>GELU</mo><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><mi>x</mi><mspace width="0.167em" /><mi>&#x003A6;</mi><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x02248;</mo><mn>0.5</mn><mspace width="0.167em" /><mi>x</mi><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mn>1</mn><mo>&#x0002B;</mo><mi>tanh</mi><mspace width="negativethinmathspace" /><mrow><mo stretchy="true" fence="true" form="prefix">[</mo><msqrt><mrow><mn>2</mn><mo>&#x0002F;</mo><mi>&#x003C0;</mi></mrow></msqrt><mspace width="0.167em" /><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mi>x</mi><mo>&#x0002B;</mo><mn>0.044715</mn><mspace width="0.167em" /><msup><mi>x</mi><mrow><mn>3</mn></mrow></msup><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow><mo stretchy="true" fence="true" form="postfix">]</mo></mrow><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow><mo>&#x0002E;</mo></mrow></math></div>
+<p>The implementation uses the tanh approximation, as in GPT-2. Compared with ReLU, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>max</mo><mo stretchy="false">&#x00028;</mo><mn>0</mn><mo>&#x0002C;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></math>, GELU is smooth and lets small negative inputs pass with a small weight, which gives non-zero gradients where ReLU has none. ReLU remains available as an option.</p>
+<h2 id="what-the-pieces-do-together">What the pieces do together</h2>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Mixes across positions?</th>
+<th>Non-linear?</th>
+<th>Learnable parameters (<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi><mo>&#x0003D;</mo><mn>64</mn></mrow></math>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Attention (all heads)</td>
+<td><strong>yes</strong></td>
+<td>only through the softmax</td>
+<td>16,640 per layer</td>
+</tr>
+<tr>
+<td>LayerNorm</td>
+<td>no</td>
+<td>yes (normalisation)</td>
+<td>128 per norm</td>
+</tr>
+<tr>
+<td>Feed-forward</td>
+<td>no</td>
+<td><strong>yes</strong> (GELU)</td>
+<td>33,088 per layer</td>
+</tr>
+</tbody>
+</table></div>
+<p>The division of labour is the central design idea: attention <em>moves</em> information between positions, and the feed-forward network <em>processes</em> it at each position.</p>
+<h2 id="limitations">Limitations</h2>
+<ol>
+<li><strong>Quadratic cost</strong> in sequence length, as discussed above.</li>
+<li><strong>No built-in order.</strong> Attention is permutation-equivariant; the order comes only from the positional encoding of the previous sub-task.</li>
+<li><strong>Interpretation caution.</strong> Attention weights show where information is read from, not necessarily why an output was produced (Jain and Wallace, 2019). They are a diagnostic, not an explanation.</li>
+<li><strong>Untrained patterns.</strong> The interface lets learners inspect attention on an untrained layer; those patterns are random-projection artefacts, not learned structure.</li>
+</ol>
+<h2 id="where-to-go-next">Where to go next</h2>
+<p>With attention, normalisation and the feed-forward network in place, the next sub-task, <a href="05_gpt_model_explanation.html">the full GPT model</a>, stacks them with residual connections, adds the output head and the loss, and defines how text is generated. The <a href="04_attention_layers_implementation_guide.html">implementation guide</a> lists the tensors and shapes in detail.</p>
+<h2 id="references">References</h2>
+<ol>
+<li>Bahdanau, D., Cho, K., Bengio, Y. (2015). <em>Neural Machine Translation by Jointly Learning to Align and Translate.</em> ICLR.</li>
+<li>Vaswani, A., et al. (2017). <em>Attention Is All You Need.</em> NeurIPS.</li>
+<li>Ba, J. L., Kiros, J. R., Hinton, G. E. (2016). <em>Layer Normalization.</em> arXiv:1607.06450.</li>
+<li>Xiong, R., et al. (2020). <em>On Layer Normalization in the Transformer Architecture.</em> ICML.</li>
+<li>Hendrycks, D., Gimpel, K. (2016). <em>Gaussian Error Linear Units (GELUs).</em> arXiv:1606.08415.</li>
+<li>Clark, K., Khandelwal, U., Levy, O., Manning, C. D. (2019). <em>What Does BERT Look At? An Analysis of BERT's Attention.</em> BlackboxNLP.</li>
+<li>Voita, E., Talbot, D., Moiseev, F., Sennrich, R., Titov, I. (2019). <em>Analyzing Multi-Head Self-Attention: Specialized Heads Do the Heavy Lifting, the Rest Can Be Pruned.</em> ACL.</li>
+<li>Geva, M., Schuster, R., Berant, J., Levy, O. (2021). <em>Transformer Feed-Forward Layers Are Key-Value Memories.</em> EMNLP.</li>
+<li>Jain, S., Wallace, B. C. (2019). <em>Attention is not Explanation.</em> NAACL.</li>
+<li>Child, R., Gray, S., Radford, A., Sutskever, I. (2019). <em>Generating Long Sequences with Sparse Transformers.</em> arXiv:1904.10509.</li>
+<li>Katharopoulos, A., Vyas, A., Pappas, N., Fleuret, F. (2020). <em>Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention.</em> ICML.</li>
+</ol>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>

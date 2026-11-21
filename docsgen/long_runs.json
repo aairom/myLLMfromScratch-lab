@@ -1,0 +1,17 @@
+{
+  "note": "Measured with the Training lab code path (ui.lab.run_training) on the default model, bundled corpus only, seed 42, AdamW, lr 0.003, warm-up 20, batch 16. Values are validation loss at the listed steps.",
+  "run_1500": {
+    "config": {"steps": 1500, "block_size": 32},
+    "train_first": 3.967, "train_last": 1.956, "train_min": 1.844,
+    "val_last": 2.134, "val_best": 2.134, "val_best_step": 1500,
+    "val_at": {"100": 3.095, "200": 3.098, "300": 3.093, "500": 3.089, "750": 2.780, "1000": 2.346, "1500": 2.134},
+    "seconds": 16
+  },
+  "run_3000": {
+    "config": {"steps": 3000, "block_size": 64},
+    "train_first": 3.970, "train_last": 1.309, "train_min": 1.084,
+    "val_last": 2.182, "val_best": 2.022, "val_best_step": 1850,
+    "val_at": {"100": 3.095, "200": 3.103, "300": 3.102, "500": 3.105, "750": 2.643, "1000": 2.373, "1500": 2.102, "2000": 2.054, "3000": 2.182},
+    "seconds": 35
+  }
+}

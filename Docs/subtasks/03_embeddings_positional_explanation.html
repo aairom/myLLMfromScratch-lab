@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>3. Embeddings and positional encoding – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 3 of 10 · Scientific explanation</p>
+<h1>3. Embeddings and positional encoding</h1>
+<p class="lede">Lookup-table embeddings, initialisation, and sinusoidal or learned position signals.</p>
+<ul class="badges" aria-label="Key facts"><li>1,262 words</li><li>8 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="03_embeddings_positional_explanation.html" aria-current="page">Explanation</a><a href="03_embeddings_positional_implementation_guide.html">Implementation guide</a><a href="02_tokenization_explanation.html">← 2. Tokenization</a><a href="04_attention_layers_explanation.html">4. Attention, multi-head attention, LayerNorm and feed-forward →</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#abstract">Abstract</a></li><li><a href="#embeddings-as-a-lookup-table">Embeddings as a lookup table</a><ul><li><a href="#size">Size</a></li><li><a href="#initialisation">Initialisation</a></li><li><a href="#weight-tying">Weight tying</a></li><li><a href="#an-optional-scale-factor">An optional scale factor</a></li></ul></li><li><a href="#why-position-must-be-injected">Why position must be injected</a><ul><li><a href="#sinusoidal-encoding">Sinusoidal encoding</a></li><li><a href="#learned-positional-embeddings">Learned positional embeddings</a></li></ul></li><li><a href="#a-scale-mismatch-worth-knowing">A scale mismatch worth knowing</a></li><li><a href="#geometry-of-the-learned-space">Geometry of the learned space</a></li><li><a href="#limitations">Limitations</a></li><li><a href="#where-to-go-next">Where to go next</a></li><li><a href="#references">References</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_explanation.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_explanation.html">Tokenization</a></li><li aria-current="step"><a href="03_embeddings_positional_explanation.html">Embeddings and positional encoding</a></li><li><a href="04_attention_layers_explanation.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_explanation.html">Full transformer (GPT) and generation</a></li><li><a href="06_training_pipeline_explanation.html">Training pipeline</a></li><li><a href="07_visualization_explanation.html">Visualization layer</a></li><li><a href="08_educational_content_explanation.html">Educational content layer</a></li><li><a href="09_streamlit_app_explanation.html">Streamlit application and learning pages</a></li><li><a href="10_scripts_docs_compliance_explanation.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="abstract">Abstract</h2>
+<p>Token ids are arbitrary labels: id 17 is not "closer" to id 18 than to id 40. An <strong>embedding</strong> replaces each id by a learnable vector so that similarity can be expressed as geometry. Self-attention, however, treats its input as an unordered set, so a <strong>positional signal</strong> must be added to tell the model where each token sits. This sub-task implements both from scratch and quantifies a practical subtlety: at initialisation the positional signal is much larger than the token signal.</p>
+<h2 id="embeddings-as-a-lookup-table">Embeddings as a lookup table</h2>
+<p>Let <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>E</mi><mo>&#x02208;</mo><msup><mi>&#x0211D;</mi><mrow><mi>V</mi><mo>&#x000D7;</mo><mi>d</mi></mrow></msup></mrow></math> be a matrix with one row per vocabulary entry, where <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>V</mi></mrow></math> is the vocabulary size and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi></mrow></math> the model width. The embedding of token <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>i</mi></mrow></math> is simply row <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>i</mi></mrow></math>:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>&#x1D41E;</mi><mi>i</mi></msub><mo>&#x0003D;</mo><msub><mi>E</mi><mrow><mi>i</mi><mo>&#x0002C;</mo><mi>:</mi></mrow></msub><mo>&#x0003D;</mo><msubsup><mi>&#x1D428;</mi><mi>i</mi><mrow><mo>&#x022A4;</mo></mrow></msubsup><mi>E</mi><mo>&#x0002C;</mo></mrow></math></div>
+<p>where <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x1D428;</mi><mi>i</mi></msub></mrow></math> is the one-hot vector of token <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>i</mi></mrow></math>. Multiplying a one-hot vector by a matrix selects a row, so the layer is an <em>index operation</em> and costs no matrix multiplication. Automatic differentiation reflects this: the gradient of the loss with respect to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>E</mi></mrow></math> is non-zero only for the rows that were looked up in the batch.</p>
+<p>The idea of learning distributed vector representations of words goes back to Bengio et al. (2003) and was popularised by word2vec (Mikolov et al., 2013). The distributional hypothesis behind it, "a word is characterised by the company it keeps" (Firth, 1957), explains why training moves tokens that occur in similar contexts closer together.</p>
+<h3 id="size">Size</h3>
+<p>With the default settings the embedding table has <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>V</mi><mo>&#x000D7;</mo><mi>d</mi><mo>&#x0003D;</mo><mn>51</mn><mo>&#x000D7;</mo><mn>64</mn></mrow></math> parameters, which is <strong>3,264</strong> parameters out of 103,360 in the whole model. With a larger vocabulary, as in BPE, the table grows linearly in <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>V</mi></mrow></math>.</p>
+<h3 id="initialisation">Initialisation</h3>
+<p>Three strategies are offered, all producing small random numbers so that no token starts out special:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Distribution</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>normal</code></td>
+<td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x1D4A9;</mi><mo stretchy="false">&#x00028;</mo><mn>0</mn><mo>&#x0002C;</mo><msup><mi>&#x003C3;</mi><mn>2</mn></msup><mo stretchy="false">&#x00029;</mo></mrow></math> with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C3;</mi><mo>&#x0003D;</mo><mn>0.02</mn></mrow></math></td>
+<td>GPT-style default</td>
+</tr>
+<tr>
+<td><code>uniform</code></td>
+<td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>U</mi><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>a</mi><mo>&#x0002C;</mo><mi>a</mi><mo stretchy="false">&#x00029;</mo></mrow></math> with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>a</mi><mo>&#x0003D;</mo><mi>&#x003C3;</mi><msqrt><mrow><mn>3</mn></mrow></msqrt></mrow></math></td>
+<td>same variance <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>&#x003C3;</mi><mn>2</mn></msup></mrow></math>, bounded support</td>
+</tr>
+<tr>
+<td><code>xavier</code></td>
+<td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>U</mi><mo stretchy="false">&#x00028;</mo><mo>&#x02212;</mo><mi>b</mi><mo>&#x0002C;</mo><mi>b</mi><mo stretchy="false">&#x00029;</mo></mrow></math> with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>b</mi><mo>&#x0003D;</mo><msqrt><mrow><mn>6</mn><mo>&#x0002F;</mo><mo stretchy="false">&#x00028;</mo><mi>V</mi><mo>&#x0002B;</mo><mi>d</mi><mo stretchy="false">&#x00029;</mo></mrow></msqrt></mrow></math></td>
+<td>Glorot and Bengio (2010): keeps activation variance stable across layers</td>
+</tr>
+</tbody>
+</table></div>
+<p>For <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C3;</mi><mo>&#x0003D;</mo><mn>0.02</mn></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi><mo>&#x0003D;</mo><mn>64</mn></mrow></math> the expected norm of one row is <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C3;</mi><msqrt><mrow><mi>d</mi></mrow></msqrt><mo>&#x0003D;</mo><mn>0.16</mn></mrow></math>. In the reference run, the mean row norm was about 0.16 at initialisation and about 0.31 after training, so the table roughly doubles in length while the tokens organise themselves.</p>
+<h3 id="weight-tying">Weight tying</h3>
+<p>When <code>tie_weights</code> is on, the output layer reuses the embedding matrix: the logit of token <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>j</mi></mrow></math> is the dot product between the final hidden state <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x1D421;</mi></mrow></math> and the embedding of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>j</mi></mrow></math>,</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>z</mi><mi>j</mi></msub><mo>&#x0003D;</mo><msup><mi>&#x1D421;</mi><mrow><mo>&#x022A4;</mo></mrow></msup><msub><mi>&#x1D41E;</mi><mi>j</mi></msub><mo>&#x0002E;</mo></mrow></math></div>
+<p>Press and Wolf (2017) and Inan et al. (2017) showed that tying reduces parameters and often improves language-model quality. It also changes the gradient: with tying, <strong>every</strong> row of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>E</mi></mrow></math> receives gradient from the output layer (all <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>V</mi></mrow></math> logits depend on it), whereas an untied input table only updates the rows used in the batch.</p>
+<h3 id="an-optional-scale-factor">An optional scale factor</h3>
+<p>The original Transformer multiplies embeddings by <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msqrt><mrow><mi>d</mi></mrow></msqrt></mrow></math> before adding positions (Vaswani et al., 2017). This implementation offers the same option, <code>TokenEmbedding(scale=True)</code>, but it is <strong>off by default</strong>, and the GPT model does not enable it. The next section shows why that matters.</p>
+<h2 id="why-position-must-be-injected">Why position must be injected</h2>
+<p>Self-attention computes, for every query, a weighted average of values over all keys. Permuting the input tokens permutes the output in the same way, so the layer is <em>permutation equivariant</em>; "dog bites man" and "man bites dog" would produce the same set of vectors. A language model needs order, so a position-dependent vector <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x1D429;</mi><mi>t</mi></msub><mo>&#x02208;</mo><msup><mi>&#x0211D;</mi><mi>d</mi></msup></mrow></math> is added to the token embedding:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>&#x1D431;</mi><mi>t</mi></msub><mo>&#x0003D;</mo><msub><mi>&#x1D41E;</mi><mrow><msub><mi>x</mi><mi>t</mi></msub></mrow></msub><mo>&#x0002B;</mo><msub><mi>&#x1D429;</mi><mi>t</mi></msub><mo>&#x0002E;</mo></mrow></math></div>
+<h3 id="sinusoidal-encoding">Sinusoidal encoding</h3>
+<p>Vaswani et al. (2017) proposed a fixed, parameter-free choice:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>P</mi><msub><mi>E</mi><mrow><mo stretchy="false">&#x00028;</mo><mi>p</mi><mi>o</mi><mi>s</mi><mo>&#x0002C;</mo><mspace width="0.167em" /><mn>2</mn><mi>i</mi><mo stretchy="false">&#x00029;</mo></mrow></msub><mo>&#x0003D;</mo><mi>sin</mi><mspace width="negativethinmathspace" /><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mfrac><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow><mrow><msup><mn>10000</mn><mrow><mn>2</mn><mi>i</mi><mo>&#x0002F;</mo><mi>d</mi></mrow></msup></mrow></mfrac><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow><mo>&#x0002C;</mo><mspace width="2em" /><mi>P</mi><msub><mi>E</mi><mrow><mo stretchy="false">&#x00028;</mo><mi>p</mi><mi>o</mi><mi>s</mi><mo>&#x0002C;</mo><mspace width="0.167em" /><mn>2</mn><mi>i</mi><mo>&#x0002B;</mo><mn>1</mn><mo stretchy="false">&#x00029;</mo></mrow></msub><mo>&#x0003D;</mo><mi>cos</mi><mspace width="negativethinmathspace" /><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mfrac><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow><mrow><msup><mn>10000</mn><mrow><mn>2</mn><mi>i</mi><mo>&#x0002F;</mo><mi>d</mi></mrow></msup></mrow></mfrac><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow><mo>&#x0002E;</mo></mrow></math></div>
+<p>Each pair of dimensions is a sine and a cosine of one frequency <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003C9;</mi><mi>i</mi></msub><mo>&#x0003D;</mo><msup><mn>10000</mn><mrow><mo>&#x02212;</mo><mn>2</mn><mi>i</mi><mo>&#x0002F;</mo><mi>d</mi></mrow></msup></mrow></math>. The wavelengths form a geometric progression from <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>2</mn><mi>&#x003C0;</mi></mrow></math> (the fastest pair, distinguishing neighbouring positions) to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>10000</mn><mo>&#x000B7;</mo><mn>2</mn><mi>&#x003C0;</mi></mrow></math> (the slowest, a coarse position signal). For <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi><mo>&#x0003D;</mo><mn>64</mn></mrow></math> the pairs <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>i</mi><mo>&#x0003D;</mo><mn>0</mn><mo>&#x0002C;</mo><mn>16</mn><mo>&#x0002C;</mo><mn>31</mn></mrow></math> have wavelengths of about 6.3, 628 and 47,117 positions.</p>
+<p>Two properties motivate the design:</p>
+<ol>
+<li><strong>Linear relative shifts.</strong> By the angle-addition identities, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>P</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi><mo>&#x0002B;</mo><mi>k</mi></mrow></msub></mrow></math> is a linear function of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>P</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow></msub></mrow></math>:</li>
+</ol>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mo>&#x00028;</mo><mtable><mtr><mtd><mi>sin</mi><mo stretchy="false">&#x00028;</mo><mi>&#x003C9;</mi><mo stretchy="false">&#x00028;</mo><mi>p</mi><mi>o</mi><mi>s</mi><mo>&#x0002B;</mo><mi>k</mi><mo stretchy="false">&#x00029;</mo><mo stretchy="false">&#x00029;</mo></mtd></mtr><mtr><mtd><mi>cos</mi><mo stretchy="false">&#x00028;</mo><mi>&#x003C9;</mi><mo stretchy="false">&#x00028;</mo><mi>p</mi><mi>o</mi><mi>s</mi><mo>&#x0002B;</mo><mi>k</mi><mo stretchy="false">&#x00029;</mo><mo stretchy="false">&#x00029;</mo></mtd></mtr></mtable><mo>&#x00029;</mo><mo>&#x0003D;</mo><mo>&#x00028;</mo><mtable><mtr><mtd><mi>cos</mi><mi>&#x003C9;</mi><mi>k</mi></mtd><mtd><mi>sin</mi><mi>&#x003C9;</mi><mi>k</mi></mtd></mtr><mtr><mtd><mo>&#x02212;</mo><mi>sin</mi><mi>&#x003C9;</mi><mi>k</mi></mtd><mtd><mi>cos</mi><mi>&#x003C9;</mi><mi>k</mi></mtd></mtr></mtable><mo>&#x00029;</mo><mo>&#x00028;</mo><mtable><mtr><mtd><mi>sin</mi><mo stretchy="false">&#x00028;</mo><mi>&#x003C9;</mi><mspace width="0.167em" /><mi>p</mi><mi>o</mi><mi>s</mi><mo stretchy="false">&#x00029;</mo></mtd></mtr><mtr><mtd><mi>cos</mi><mo stretchy="false">&#x00028;</mo><mi>&#x003C9;</mi><mspace width="0.167em" /><mi>p</mi><mi>o</mi><mi>s</mi><mo stretchy="false">&#x00029;</mo></mtd></mtr></mtable><mo>&#x00029;</mo><mo>&#x0002E;</mo></mrow></math></div>
+<p>A network can therefore learn to attend to "the token <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>k</mi></mrow></math> steps back" with a fixed linear map.
+2. <strong>No length limit by construction.</strong> The formula is defined for any <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow></math>, although the model is only trained on positions it has seen.</p>
+<p>Every row has the same length: each sine/cosine pair contributes <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msup><mi>sin</mi><mn>2</mn></msup><mo>&#x0002B;</mo><msup><mi>cos</mi><mn>2</mn></msup><mo>&#x0003D;</mo><mn>1</mn></mrow></math>, so <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mo>&#x02016;</mo><mi>P</mi><msub><mi>E</mi><mrow><mi>p</mi><mi>o</mi><mi>s</mi></mrow></msub><mo>&#x02016;</mo><mo>&#x0003D;</mo><msqrt><mrow><mi>d</mi><mo>&#x0002F;</mo><mn>2</mn></mrow></msqrt></mrow></math>, which is 5.657 for <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi><mo>&#x0003D;</mo><mn>64</mn></mrow></math>.</p>
+<h3 id="learned-positional-embeddings">Learned positional embeddings</h3>
+<p>GPT-2 (Radford et al., 2019) instead learns a table <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>P</mi><mo>&#x02208;</mo><msup><mi>&#x0211D;</mi><mrow><mi>L</mi><mo>&#x000D7;</mo><mi>d</mi></mrow></msup></mrow></math> with one trainable row per position, initialised like the token table. It is more flexible, but it can only represent positions up to <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>L</mi></mrow></math> and has no built-in notion of distance. The project offers both so the effect can be compared.</p>
+<h2 id="a-scale-mismatch-worth-knowing">A scale mismatch worth knowing</h2>
+<p>Compare the two magnitudes at initialisation, for <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>d</mi><mo>&#x0003D;</mo><mn>64</mn></mrow></math>:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Norm per vector</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Token embedding (random, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003C3;</mi><mo>&#x0003D;</mo><mn>0.02</mn></mrow></math>)</td>
+<td>about 0.16</td>
+</tr>
+<tr>
+<td>Sinusoidal position</td>
+<td>5.657</td>
+</tr>
+</tbody>
+</table></div>
+<p>The positional signal is roughly <strong>35 times larger</strong> than the token signal when training starts. The <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msqrt><mrow><mi>d</mi></mrow></msqrt></mrow></math> factor of the original paper addresses exactly this imbalance, with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msqrt><mrow><mn>64</mn></mrow></msqrt><mo>&#x0003D;</mo><mn>8</mn></mrow></math> raising the token norm to about 1.3. This project keeps the unscaled version because it follows the GPT-2 convention, and because two things compensate: the first LayerNorm (applied before attention in each block) rescales the sum, and the token table grows during training (about 0.31 in the reference run). The likely consequence is that early in training the representation is dominated by <em>position</em> until the token part grows; this is an expectation from the norms, not something measured separately here.</p>
+<div class="admonition note">
+<p class="admonition-title">A teaching opportunity</p>
+<p>Setting <code>scale=True</code> in <code>TokenEmbedding</code>, or inspecting the norms on the positional-encoding page, makes the effect visible. It is a good reminder that "small initialisation" and "fixed encoding" are two decisions that interact.</p>
+</div>
+<h2 id="geometry-of-the-learned-space">Geometry of the learned space</h2>
+<p>After training, nearby points in embedding space tend to be tokens used in similar contexts. Two diagnostics are used in the interface:</p>
+<ul>
+<li><strong>Cosine similarity</strong>, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>cos</mi><mi>&#x003B8;</mi><mo>&#x0003D;</mo><mstyle displaystyle="true" scriptlevel="0"><mfrac><mrow><mi>&#x1D42E;</mi><mo>&#x000B7;</mo><mi>&#x1D42F;</mi></mrow><mrow><mo>&#x02016;</mo><mi>&#x1D42E;</mi><mo>&#x02016;</mo><mspace width="0.167em" /><mo>&#x02016;</mo><mi>&#x1D42F;</mi><mo>&#x02016;</mo></mrow></mfrac></mstyle></mrow></math>, which ignores length and measures direction only;</li>
+<li><strong>Principal-component projection</strong> to two dimensions, which shows the largest directions of variation. A projection of a 64-dimensional space to two dimensions discards most of the structure, so clusters are suggestive, not proof.</li>
+</ul>
+<p>With 300 training steps on a small corpus the model has learned only letter frequencies (see the training explanation), so do not expect rich semantic structure; the geometry at this scale mainly separates frequent from rare characters.</p>
+<h2 id="limitations">Limitations</h2>
+<ol>
+<li><strong>Absolute positions only.</strong> Both encodings give each token an absolute index. Later work, such as relative position biases (Shaw et al., 2018) and rotary embeddings (Su et al., 2021), encodes the <em>distance</em> between tokens inside attention.</li>
+<li><strong>Fixed context.</strong> The learned table cannot go beyond the context length it was built with; here the context is 64 tokens.</li>
+<li><strong>Embeddings are static per token.</strong> A token has one vector regardless of context; the context-dependent meaning is built by the layers above.</li>
+</ol>
+<h2 id="where-to-go-next">Where to go next</h2>
+<p>The vectors now carry token identity and position. The next sub-task, <a href="04_attention_layers_explanation.html">attention, layer normalisation and the feed-forward network</a>, lets each position read from the others. See the <a href="03_embeddings_positional_implementation_guide.html">implementation guide</a> for the code.</p>
+<h2 id="references">References</h2>
+<ol>
+<li>Bengio, Y., Ducharme, R., Vincent, P., Jauvin, C. (2003). <em>A Neural Probabilistic Language Model.</em> Journal of Machine Learning Research 3.</li>
+<li>Mikolov, T., Chen, K., Corrado, G., Dean, J. (2013). <em>Efficient Estimation of Word Representations in Vector Space.</em> arXiv:1301.3781.</li>
+<li>Firth, J. R. (1957). <em>A synopsis of linguistic theory 1930-1955.</em> Studies in Linguistic Analysis.</li>
+<li>Glorot, X., Bengio, Y. (2010). <em>Understanding the difficulty of training deep feedforward neural networks.</em> AISTATS.</li>
+<li>Press, O., Wolf, L. (2017). <em>Using the Output Embedding to Improve Language Models.</em> EACL.</li>
+<li>Inan, H., Khosravi, K., Socher, R. (2017). <em>Tying Word Vectors and Word Classifiers.</em> ICLR.</li>
+<li>Vaswani, A., Shazeer, N., Parmar, N., et al. (2017). <em>Attention Is All You Need.</em> NeurIPS.</li>
+<li>Radford, A., et al. (2019). <em>Language Models are Unsupervised Multitask Learners.</em> OpenAI.</li>
+<li>Shaw, P., Uszkoreit, J., Vaswani, A. (2018). <em>Self-Attention with Relative Position Representations.</em> NAACL.</li>
+<li>Su, J., et al. (2021). <em>RoFormer: Enhanced Transformer with Rotary Position Embedding.</em> arXiv:2104.09864.</li>
+</ol>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>

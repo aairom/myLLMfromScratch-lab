@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>6. The training pipeline – LLM From Scratch Lab</title>
+<style>
+
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328; --muted: #4f5b66;
+  --accent: #0b5cad; --accent-bg: #eaf2fb; --note-bg: #fff8e1; --note-border: #9a6700;
+  --ok-bg: #e8f5ee; --ok-border: #0a6b3b; --focus: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #9fb0c0;
+    --accent: #79c0ff; --accent-bg: #10243a; --note-bg: #2a2310; --note-border: #d4a72c;
+    --ok-bg: #0f2a1a; --ok-border: #7ee787; --focus: #ffa198;
+  }
+}
+* { box-sizing: border-box; }
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); line-height: 1.65;
+  font-family: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+}
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--bg);
+  padding: .5rem 1rem; z-index: 10; }
+.skip-link:focus { left: .5rem; top: .5rem; }
+a { color: var(--accent); text-underline-offset: .15em; }
+a:focus-visible, summary:focus-visible, pre:focus-visible, .scroll:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px; }
+header.site { border-bottom: 1px solid var(--border); background: var(--surface); }
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+header.site .wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+.kicker { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: .02em; }
+h1 { font-size: 2rem; line-height: 1.25; margin: .25rem 0 .5rem; }
+.lede { margin: 0; color: var(--muted); max-width: 46rem; }
+.badges { display: flex; flex-wrap: wrap; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.badges li { border: 1px solid var(--border); border-radius: 999px; padding: .1rem .7rem;
+  font-size: .85rem; background: var(--bg); }
+nav.subnav { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .9rem 0 0; font-size: .95rem; }
+nav.subnav a[aria-current="page"] { font-weight: 700; color: var(--text); text-decoration: none; }
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; padding-top: 1.5rem; }
+nav.toc { position: sticky; top: 1rem; align-self: start; font-size: .92rem;
+  max-height: calc(100vh - 2rem); overflow: auto; }
+nav.toc h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 .5rem; }
+nav.toc ul { list-style: none; margin: 0; padding: 0; }
+nav.toc ul ul { padding-left: .9rem; }
+nav.toc li { margin: .25rem 0; }
+main { min-width: 0; padding-bottom: 3rem; }
+main h2 { font-size: 1.5rem; margin: 2.4rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+main h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+main h4 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+main p, main li { max-width: 46rem; }
+main li { margin: .25rem 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: .05em .3em; }
+pre { margin: 1rem 0; padding: .9rem 1rem; overflow: auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; line-height: 1.5; tab-size: 4; }
+pre code { background: none; border: 0; padding: 0; font-size: .86rem; }
+figure.source { margin: 1.25rem 0; }
+figure.source figcaption { font-size: .85rem; color: var(--muted); margin-bottom: .25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+figure.source pre { margin: 0; }
+pre.flow { background: var(--accent-bg); border-color: var(--accent); }
+.scroll { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--border); padding: .4rem .65rem; text-align: left; vertical-align: top; }
+thead th { background: var(--surface); }
+caption { text-align: left; color: var(--muted); font-size: .85rem; padding-bottom: .3rem; }
+math { font-size: 1.1em; }
+math[display="block"] { display: block; margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+.eq { margin: 1rem 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); background: var(--accent-bg); overflow-x: auto; }
+.callout { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.callout.ok { border-color: var(--ok-border); background: var(--ok-bg); }
+.callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
+.callout .label { font-weight: 700; display: block; }
+ol.path { list-style: none; counter-reset: step; display: grid; gap: .35rem; padding: 0; margin: 1rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+ol.path li { counter-increment: step; border: 1px solid var(--border); border-radius: 6px;
+  padding: .45rem .7rem; font-size: .9rem; background: var(--surface); max-width: none; }
+ol.path li::before { content: counter(step) ". "; font-weight: 700; }
+ol.path li[aria-current="step"] { border: 2px solid var(--accent); background: var(--accent-bg); }
+footer.site { border-top: 1px solid var(--border); padding: 1.5rem 0 2.5rem; color: var(--muted); font-size: .9rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); padding: 0; list-style: none; }
+.cards li { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--surface); max-width: none; }
+.cards h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.cards p { margin: .3rem 0; }
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { position: static; max-height: none; }
+}
+@media print {
+  .skip-link, nav.subnav, nav.toc { display: none; }
+  .layout { display: block; }
+  pre { white-space: pre-wrap; }
+  a { color: inherit; }
+}
+
+
+:root { --c0: #5b6b7b; --c1: #0b5cad; --c2: #8a1c7c; --grid: #d8dee4; --plot: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --c0: #9fb0c0; --c1: #79c0ff; --c2: #ff9bd9; --grid: #30363d; --plot: #0d1117; }
+}
+.admonition { margin: 1.25rem 0; padding: .7rem 1rem; border-left: 4px solid var(--note-border);
+  background: var(--note-bg); border-radius: 0 6px 6px 0; }
+.admonition.tip, .admonition.success { border-color: var(--ok-border); background: var(--ok-bg); }
+.admonition.info, .admonition.example { border-color: var(--accent); background: var(--accent-bg); }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition-title { margin: 0 0 .25rem; font-weight: 700; }
+figure.chart { margin: 1.5rem 0; }
+figure.chart figcaption { max-width: 46rem; margin-bottom: .4rem; font-size: .95rem; }
+.chart-svg { width: 100%; height: auto; max-width: 46rem; display: block; }
+.chart-svg .plot-bg { fill: var(--plot); stroke: var(--border); }
+.chart-svg .grid { stroke: var(--grid); stroke-width: 1; }
+.chart-svg .axis { stroke: var(--muted); stroke-width: 1.5; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; }
+.chart-svg .label { fill: var(--text); font-size: 12px; }
+.chart-svg .ref, svg .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.line.s0 { stroke: var(--c0); } .line.s1 { stroke: var(--c1); stroke-width: 2.5; }
+.line.s2 { stroke: var(--c2); stroke-dasharray: 7 4; }
+.line.thin { stroke-width: 1; opacity: .8; }
+.dot.s2 { fill: var(--c2); }
+ul.legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; list-style: none; margin: .4rem 0 0; padding: 0; font-size: .88rem; }
+ul.legend li { margin: 0; max-width: none; }
+ul.legend svg { vertical-align: middle; }
+details.data { margin-top: .5rem; font-size: .92rem; }
+details.data summary { cursor: pointer; }
+figure.flow { margin: 1.25rem 0; }
+figure.flow figcaption { font-size: .9rem; color: var(--muted); margin-bottom: .25rem; }
+figure.flow pre { margin: 0; background: var(--accent-bg); border-color: var(--accent); }
+.fact-note { color: var(--muted); font-size: .9rem; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f6f8fa; color: #1F2328 }
+.code .c { color: #4F5B66; font-style: italic } /* Comment */
+.code .err { color: #B3261E } /* Error */
+.code .esc { color: #1F2328 } /* Escape */
+.code .g { color: #1F2328 } /* Generic */
+.code .k { color: #8A1C7C; font-weight: bold } /* Keyword */
+.code .l { color: #1F2328 } /* Literal */
+.code .n { color: #1F2328 } /* Name */
+.code .o { color: #1F2328 } /* Operator */
+.code .x { color: #1F2328 } /* Other */
+.code .p { color: #1F2328 } /* Punctuation */
+.code .ch { color: #4F5B66; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #4F5B66; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #4F5B66; font-style: italic } /* Comment.Preproc */
+.code .cpf { color: #4F5B66; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #4F5B66; font-style: italic } /* Comment.Single */
+.code .cs { color: #4F5B66; font-style: italic } /* Comment.Special */
+.code .gd { color: #1F2328 } /* Generic.Deleted */
+.code .ge { color: #1F2328 } /* Generic.Emph */
+.code .ges { color: #1F2328 } /* Generic.EmphStrong */
+.code .gr { color: #1F2328 } /* Generic.Error */
+.code .gh { color: #1F2328; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #1F2328 } /* Generic.Inserted */
+.code .go { color: #1F2328 } /* Generic.Output */
+.code .gp { color: #4F5B66 } /* Generic.Prompt */
+.code .gs { color: #1F2328 } /* Generic.Strong */
+.code .gu { color: #1F2328 } /* Generic.Subheading */
+.code .gt { color: #1F2328 } /* Generic.Traceback */
+.code .kc { color: #0B5CAD; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #8A1C7C; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #8A1C7C; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #8A1C7C; font-weight: bold } /* Keyword.Pseudo */
+.code .kr { color: #8A1C7C; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #8A1C7C; font-weight: bold } /* Keyword.Type */
+.code .ld { color: #1F2328 } /* Literal.Date */
+.code .m { color: #0B5CAD } /* Literal.Number */
+.code .s { color: #0A6B3B } /* Literal.String */
+.code .na { color: #1F2328 } /* Name.Attribute */
+.code .nb { color: #0B5CAD } /* Name.Builtin */
+.code .nc { color: #6B3FA0; font-weight: bold } /* Name.Class */
+.code .no { color: #1F2328 } /* Name.Constant */
+.code .nd { color: #6B3FA0 } /* Name.Decorator */
+.code .ni { color: #1F2328 } /* Name.Entity */
+.code .ne { color: #B3261E; font-weight: bold } /* Name.Exception */
+.code .nf { color: #6B3FA0; font-weight: bold } /* Name.Function */
+.code .nl { color: #1F2328 } /* Name.Label */
+.code .nn { color: #1F2328 } /* Name.Namespace */
+.code .nx { color: #1F2328 } /* Name.Other */
+.code .py { color: #1F2328 } /* Name.Property */
+.code .nt { color: #1F2328 } /* Name.Tag */
+.code .nv { color: #1F2328 } /* Name.Variable */
+.code .ow { color: #8A1C7C; font-weight: bold } /* Operator.Word */
+.code .pm { color: #1F2328 } /* Punctuation.Marker */
+.code .w { color: #1F2328 } /* Text.Whitespace */
+.code .mb { color: #0B5CAD } /* Literal.Number.Bin */
+.code .mf { color: #0B5CAD } /* Literal.Number.Float */
+.code .mh { color: #0B5CAD } /* Literal.Number.Hex */
+.code .mi { color: #0B5CAD } /* Literal.Number.Integer */
+.code .mo { color: #0B5CAD } /* Literal.Number.Oct */
+.code .sa { color: #0A6B3B } /* Literal.String.Affix */
+.code .sb { color: #0A6B3B } /* Literal.String.Backtick */
+.code .sc { color: #0A6B3B } /* Literal.String.Char */
+.code .dl { color: #0A6B3B } /* Literal.String.Delimiter */
+.code .sd { color: #4F5B66; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #0A6B3B } /* Literal.String.Double */
+.code .se { color: #0A6B3B } /* Literal.String.Escape */
+.code .sh { color: #0A6B3B } /* Literal.String.Heredoc */
+.code .si { color: #0A6B3B } /* Literal.String.Interpol */
+.code .sx { color: #0A6B3B } /* Literal.String.Other */
+.code .sr { color: #0A6B3B } /* Literal.String.Regex */
+.code .s1 { color: #0A6B3B } /* Literal.String.Single */
+.code .ss { color: #0A6B3B } /* Literal.String.Symbol */
+.code .bp { color: #0B5CAD } /* Name.Builtin.Pseudo */
+.code .fm { color: #6B3FA0; font-weight: bold } /* Name.Function.Magic */
+.code .vc { color: #1F2328 } /* Name.Variable.Class */
+.code .vg { color: #1F2328 } /* Name.Variable.Global */
+.code .vi { color: #1F2328 } /* Name.Variable.Instance */
+.code .vm { color: #1F2328 } /* Name.Variable.Magic */
+.code .il { color: #0B5CAD } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme: dark) {
+  pre { line-height: 125%; }
+  td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+  td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+  .code .hll { background-color: #ffffcc }
+  .code { background: #161b22; color: #E6EDF3 }
+  .code .c { color: #9FB0C0; font-style: italic } /* Comment */
+  .code .err { color: #FFA198 } /* Error */
+  .code .esc { color: #E6EDF3 } /* Escape */
+  .code .g { color: #E6EDF3 } /* Generic */
+  .code .k { color: #FF9BD9; font-weight: bold } /* Keyword */
+  .code .l { color: #E6EDF3 } /* Literal */
+  .code .n { color: #E6EDF3 } /* Name */
+  .code .o { color: #E6EDF3 } /* Operator */
+  .code .x { color: #E6EDF3 } /* Other */
+  .code .p { color: #E6EDF3 } /* Punctuation */
+  .code .ch { color: #9FB0C0; font-style: italic } /* Comment.Hashbang */
+  .code .cm { color: #9FB0C0; font-style: italic } /* Comment.Multiline */
+  .code .cp { color: #9FB0C0; font-style: italic } /* Comment.Preproc */
+  .code .cpf { color: #9FB0C0; font-style: italic } /* Comment.PreprocFile */
+  .code .c1 { color: #9FB0C0; font-style: italic } /* Comment.Single */
+  .code .cs { color: #9FB0C0; font-style: italic } /* Comment.Special */
+  .code .gd { color: #E6EDF3 } /* Generic.Deleted */
+  .code .ge { color: #E6EDF3 } /* Generic.Emph */
+  .code .ges { color: #E6EDF3 } /* Generic.EmphStrong */
+  .code .gr { color: #E6EDF3 } /* Generic.Error */
+  .code .gh { color: #E6EDF3; font-weight: bold } /* Generic.Heading */
+  .code .gi { color: #E6EDF3 } /* Generic.Inserted */
+  .code .go { color: #E6EDF3 } /* Generic.Output */
+  .code .gp { color: #9FB0C0 } /* Generic.Prompt */
+  .code .gs { color: #E6EDF3 } /* Generic.Strong */
+  .code .gu { color: #E6EDF3 } /* Generic.Subheading */
+  .code .gt { color: #E6EDF3 } /* Generic.Traceback */
+  .code .kc { color: #79C0FF; font-weight: bold } /* Keyword.Constant */
+  .code .kd { color: #FF9BD9; font-weight: bold } /* Keyword.Declaration */
+  .code .kn { color: #FF9BD9; font-weight: bold } /* Keyword.Namespace */
+  .code .kp { color: #FF9BD9; font-weight: bold } /* Keyword.Pseudo */
+  .code .kr { color: #FF9BD9; font-weight: bold } /* Keyword.Reserved */
+  .code .kt { color: #FF9BD9; font-weight: bold } /* Keyword.Type */
+  .code .ld { color: #E6EDF3 } /* Literal.Date */
+  .code .m { color: #79C0FF } /* Literal.Number */
+  .code .s { color: #7EE787 } /* Literal.String */
+  .code .na { color: #E6EDF3 } /* Name.Attribute */
+  .code .nb { color: #79C0FF } /* Name.Builtin */
+  .code .nc { color: #D2A8FF; font-weight: bold } /* Name.Class */
+  .code .no { color: #E6EDF3 } /* Name.Constant */
+  .code .nd { color: #D2A8FF } /* Name.Decorator */
+  .code .ni { color: #E6EDF3 } /* Name.Entity */
+  .code .ne { color: #FFA198; font-weight: bold } /* Name.Exception */
+  .code .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+  .code .nl { color: #E6EDF3 } /* Name.Label */
+  .code .nn { color: #E6EDF3 } /* Name.Namespace */
+  .code .nx { color: #E6EDF3 } /* Name.Other */
+  .code .py { color: #E6EDF3 } /* Name.Property */
+  .code .nt { color: #E6EDF3 } /* Name.Tag */
+  .code .nv { color: #E6EDF3 } /* Name.Variable */
+  .code .ow { color: #FF9BD9; font-weight: bold } /* Operator.Word */
+  .code .pm { color: #E6EDF3 } /* Punctuation.Marker */
+  .code .w { color: #E6EDF3 } /* Text.Whitespace */
+  .code .mb { color: #79C0FF } /* Literal.Number.Bin */
+  .code .mf { color: #79C0FF } /* Literal.Number.Float */
+  .code .mh { color: #79C0FF } /* Literal.Number.Hex */
+  .code .mi { color: #79C0FF } /* Literal.Number.Integer */
+  .code .mo { color: #79C0FF } /* Literal.Number.Oct */
+  .code .sa { color: #7EE787 } /* Literal.String.Affix */
+  .code .sb { color: #7EE787 } /* Literal.String.Backtick */
+  .code .sc { color: #7EE787 } /* Literal.String.Char */
+  .code .dl { color: #7EE787 } /* Literal.String.Delimiter */
+  .code .sd { color: #9FB0C0; font-style: italic } /* Literal.String.Doc */
+  .code .s2 { color: #7EE787 } /* Literal.String.Double */
+  .code .se { color: #7EE787 } /* Literal.String.Escape */
+  .code .sh { color: #7EE787 } /* Literal.String.Heredoc */
+  .code .si { color: #7EE787 } /* Literal.String.Interpol */
+  .code .sx { color: #7EE787 } /* Literal.String.Other */
+  .code .sr { color: #7EE787 } /* Literal.String.Regex */
+  .code .s1 { color: #7EE787 } /* Literal.String.Single */
+  .code .ss { color: #7EE787 } /* Literal.String.Symbol */
+  .code .bp { color: #79C0FF } /* Name.Builtin.Pseudo */
+  .code .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+  .code .vc { color: #E6EDF3 } /* Name.Variable.Class */
+  .code .vg { color: #E6EDF3 } /* Name.Variable.Global */
+  .code .vi { color: #E6EDF3 } /* Name.Variable.Instance */
+  .code .vm { color: #E6EDF3 } /* Name.Variable.Magic */
+  .code .il { color: #79C0FF } /* Literal.Number.Integer.Long */
+}
+.layout.single { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to main content</a>
+<header class="site">
+<div class="wrap">
+<p class="kicker">LLM From Scratch Lab · Sub-task 6 of 10 · Scientific explanation</p>
+<h1>6. The training pipeline</h1>
+<p class="lede">Windowed data, backpropagation, hand-written Adam and SGD, learning-rate schedules, checkpoints.</p>
+<ul class="badges" aria-label="Key facts"><li>1,951 words</li><li>12 sections</li></ul>
+<nav class="subnav" aria-label="Documents"><a href="index.html">Index</a><a href="06_training_pipeline_explanation.html" aria-current="page">Explanation</a><a href="06_training_pipeline_implementation_guide.html">Implementation guide</a><a href="05_gpt_model_explanation.html">← 5. Full transformer (GPT) and generation</a><a href="07_visualization_explanation.html">7. Visualization layer →</a></nav>
+</div>
+</header>
+<div class="wrap layout">
+<nav class="toc" aria-label="On this page"><h2>On this page</h2><ul><li><a href="#abstract">Abstract</a></li><li><a href="#data-from-a-token-stream-to-batches">Data: from a token stream to batches</a><ul><li><a href="#windows-and-the-shift-by-one-target">Windows and the shift-by-one target</a></li><li><a href="#train-and-validation-split">Train and validation split</a></li></ul></li><li><a href="#backpropagation">Backpropagation</a></li><li><a href="#optimisers">Optimisers</a><ul><li><a href="#plain-gradient-descent-and-momentum">Plain gradient descent and momentum</a></li><li><a href="#adam">Adam</a></li><li><a href="#weight-decay-l2-versus-adamw">Weight decay: L2 versus AdamW</a></li><li><a href="#choices-offered">Choices offered</a></li></ul></li><li><a href="#learning-rate-schedule">Learning-rate schedule</a></li><li><a href="#gradient-clipping">Gradient clipping</a></li><li><a href="#reading-the-loss-curves">Reading the loss curves</a><ul><li><a href="#training-for-longer">Training for longer</a></li></ul></li><li><a href="#evaluation">Evaluation</a></li><li><a href="#checkpoints">Checkpoints</a></li><li><a href="#limitations">Limitations</a></li><li><a href="#where-to-go-next">Where to go next</a></li><li><a href="#references">References</a></li></ul></nav>
+<main id="content" tabindex="-1">
+<nav aria-label="Position in the project path"><ol class="path"><li><a href="01_scaffolding_explanation.html">Project scaffolding and environment</a></li><li><a href="02_tokenization_explanation.html">Tokenization</a></li><li><a href="03_embeddings_positional_explanation.html">Embeddings and positional encoding</a></li><li><a href="04_attention_layers_explanation.html">Attention, multi-head attention, LayerNorm and feed-forward</a></li><li><a href="05_gpt_model_explanation.html">Full transformer (GPT) and generation</a></li><li aria-current="step"><a href="06_training_pipeline_explanation.html">Training pipeline</a></li><li><a href="07_visualization_explanation.html">Visualization layer</a></li><li><a href="08_educational_content_explanation.html">Educational content layer</a></li><li><a href="09_streamlit_app_explanation.html">Streamlit application and learning pages</a></li><li><a href="10_scripts_docs_compliance_explanation.html">Scripts, documentation and compliance</a></li></ol></nav>
+<h2 id="abstract">Abstract</h2>
+<p>Training turns a randomly initialised network into a language model by repeatedly nudging its parameters to lower the next-token loss. This document explains the whole loop: how text becomes windowed batches, how gradients are obtained by backpropagation, how Adam and SGD turn gradients into updates, why the learning rate follows a warm-up and cosine schedule, and why gradients are clipped. It then reads the reference run honestly: in 300 steps the loss falls from 3.967 to 3.037, but the validation loss of 3.086 shows the model has learned letter frequencies and not yet context.</p>
+<h2 id="data-from-a-token-stream-to-batches">Data: from a token stream to batches</h2>
+<h3 id="windows-and-the-shift-by-one-target">Windows and the shift-by-one target</h3>
+<p>After tokenization the corpus is one long sequence of ids <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>d</mi><mn>1</mn></msub><mo>&#x0002C;</mo><msub><mi>d</mi><mn>2</mn></msub><mo>&#x0002C;</mo><mo>&#x02026;</mo><mo>&#x0002C;</mo><msub><mi>d</mi><mi>N</mi></msub></mrow></math>. A training example is a window of <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>T</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></math> consecutive ids. The model sees the first <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>T</mi></mrow></math> and is asked to predict, at every position, the id that follows:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>x</mi><mo>&#x0003D;</mo><mo stretchy="false">&#x00028;</mo><msub><mi>d</mi><mi>s</mi></msub><mo>&#x0002C;</mo><mo>&#x02026;</mo><mo>&#x0002C;</mo><msub><mi>d</mi><mrow><mi>s</mi><mo>&#x0002B;</mo><mi>T</mi><mo>&#x02212;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00029;</mo><mo>&#x0002C;</mo><mspace width="2em" /><mi>y</mi><mo>&#x0003D;</mo><mo stretchy="false">&#x00028;</mo><msub><mi>d</mi><mrow><mi>s</mi><mo>&#x0002B;</mo><mn>1</mn></mrow></msub><mo>&#x0002C;</mo><mo>&#x02026;</mo><mo>&#x0002C;</mo><msub><mi>d</mi><mrow><mi>s</mi><mo>&#x0002B;</mo><mi>T</mi></mrow></msub><mo stretchy="false">&#x00029;</mo><mo>&#x0002E;</mo></mrow></math></div>
+<p>Because the causal mask hides the future, one window supplies <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>T</mi></mrow></math> training examples in a single forward pass. A batch stacks <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>B</mi></mrow></math> windows whose start positions <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>s</mi></mrow></math> are drawn uniformly at random, so one step trains on <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>B</mi><mo>&#x000B7;</mo><mi>T</mi></mrow></math> tokens. The reference run uses <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>B</mi><mo>&#x0003D;</mo><mn>16</mn></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>T</mi><mo>&#x0003D;</mo><mn>32</mn></mrow></math>, which is 512 tokens per step.</p>
+<h3 id="train-and-validation-split">Train and validation split</h3>
+<p>The token stream is cut into a training part and a <strong>validation</strong> part that the optimiser never sees. The cut is <em>contiguous</em> (the last 10 %), not shuffled: a shuffled split would put neighbouring characters on both sides of the boundary and let the model "see" its validation text through overlapping context. For the bundled corpus the split is 4,389 training and 487 validation tokens.</p>
+<div class="admonition note">
+<p class="admonition-title">How much data is that?</p>
+<p>The reference run processes 153,600 tokens in total, which is about 35.0 passes over the training split. With so few distinct tokens the model sees every training character many times; this is the root of the overfitting shown below.</p>
+</div>
+<h2 id="backpropagation">Backpropagation</h2>
+<p>With parameters <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B8;</mi></mrow></math> and loss <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x02112;</mi><mo stretchy="false">&#x00028;</mo><mi>&#x003B8;</mi><mo stretchy="false">&#x00029;</mo></mrow></math>, learning needs the gradient <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>g</mi><mo>&#x0003D;</mo><msub><mo>&#x02207;</mo><mi>&#x003B8;</mi></msub><mi>&#x02112;</mi></mrow></math>. The loss is a composition of differentiable operations, so the chain rule gives the gradient layer by layer, from the output backwards. For a composition <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x02112;</mi><mo>&#x0003D;</mo><msub><mi>f</mi><mi>n</mi></msub><mo>&#x02218;</mo><mo>&#x022EF;</mo><mo>&#x02218;</mo><msub><mi>f</mi><mn>1</mn></msub></mrow></math> with intermediate values <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>a</mi><mi>k</mi></msub><mo>&#x0003D;</mo><msub><mi>f</mi><mi>k</mi></msub><mo stretchy="false">&#x00028;</mo><msub><mi>a</mi><mrow><mi>k</mi><mo>&#x02212;</mo><mn>1</mn></mrow></msub><mo stretchy="false">&#x00029;</mo></mrow></math>,</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mfrac><mrow><mo>&#x02202;</mo><mi>&#x02112;</mi></mrow><mrow><mo>&#x02202;</mo><msub><mi>a</mi><mrow><mi>k</mi><mo>&#x02212;</mo><mn>1</mn></mrow></msub></mrow></mfrac><mo>&#x0003D;</mo><msup><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mfrac><mrow><mo>&#x02202;</mo><msub><mi>a</mi><mi>k</mi></msub></mrow><mrow><mo>&#x02202;</mo><msub><mi>a</mi><mrow><mi>k</mi><mo>&#x02212;</mo><mn>1</mn></mrow></msub></mrow></mfrac><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow><mrow><mspace width="negativethinmathspace" /><mo>&#x022A4;</mo></mrow></msup><mfrac><mrow><mo>&#x02202;</mo><mi>&#x02112;</mi></mrow><mrow><mo>&#x02202;</mo><msub><mi>a</mi><mi>k</mi></msub></mrow></mfrac><mo>&#x0002E;</mo></mrow></math></div>
+<p>Reverse-mode automatic differentiation (Rumelhart, Hinton and Williams, 1986) stores the forward activations and applies this recurrence once, so the cost of the full gradient is a small constant multiple of one forward pass, however many parameters there are. In PyTorch <code>loss.backward()</code> performs it and fills <code>p.grad</code> for every parameter. Residual connections help here: the identity path adds a term <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>1</mn></mrow></math> to each layer's Jacobian, so the gradient reaching early layers does not shrink geometrically with depth.</p>
+<h2 id="optimisers">Optimisers</h2>
+<p>An optimiser maps the gradient to an update. All of them below are written by hand in this project, with the same interface as <code>torch.optim</code>, and tested step by step against PyTorch's implementations.</p>
+<h3 id="plain-gradient-descent-and-momentum">Plain gradient descent and momentum</h3>
+<p>The simplest rule moves against the gradient, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B8;</mi><mo>&#x02190;</mo><mi>&#x003B8;</mi><mo>&#x02212;</mo><mi>&#x003B7;</mi><mspace width="0.167em" /><mi>g</mi></mrow></math>, with learning rate <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B7;</mi></mrow></math>. <strong>Momentum</strong> (Polyak, 1964) accumulates a velocity so consistent directions speed up and oscillations cancel:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>b</mi><mi>t</mi></msub><mo>&#x0003D;</mo><mi>&#x003BC;</mi><mspace width="0.167em" /><msub><mi>b</mi><mrow><mi>t</mi><mo>&#x02212;</mo><mn>1</mn></mrow></msub><mo>&#x0002B;</mo><msub><mi>g</mi><mi>t</mi></msub><mo>&#x0002C;</mo><mspace width="2em" /><msub><mi>&#x003B8;</mi><mi>t</mi></msub><mo>&#x0003D;</mo><msub><mi>&#x003B8;</mi><mrow><mi>t</mi><mo>&#x02212;</mo><mn>1</mn></mrow></msub><mo>&#x02212;</mo><mi>&#x003B7;</mi><mspace width="0.167em" /><msub><mi>b</mi><mi>t</mi></msub><mo>&#x0002E;</mo></mrow></math></div>
+<h3 id="adam">Adam</h3>
+<p>Adam (Kingma and Ba, 2015) keeps two running averages per parameter, the first moment (mean) and the second moment (uncentred variance) of the gradient:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>m</mi><mi>t</mi></msub><mo>&#x0003D;</mo><msub><mi>&#x003B2;</mi><mn>1</mn></msub><msub><mi>m</mi><mrow><mi>t</mi><mo>&#x02212;</mo><mn>1</mn></mrow></msub><mo>&#x0002B;</mo><mo stretchy="false">&#x00028;</mo><mn>1</mn><mo>&#x02212;</mo><msub><mi>&#x003B2;</mi><mn>1</mn></msub><mo stretchy="false">&#x00029;</mo><msub><mi>g</mi><mi>t</mi></msub><mo>&#x0002C;</mo><mspace width="2em" /><msub><mi>v</mi><mi>t</mi></msub><mo>&#x0003D;</mo><msub><mi>&#x003B2;</mi><mn>2</mn></msub><msub><mi>v</mi><mrow><mi>t</mi><mo>&#x02212;</mo><mn>1</mn></mrow></msub><mo>&#x0002B;</mo><mo stretchy="false">&#x00028;</mo><mn>1</mn><mo>&#x02212;</mo><msub><mi>&#x003B2;</mi><mn>2</mn></msub><mo stretchy="false">&#x00029;</mo><msubsup><mi>g</mi><mi>t</mi><mrow><mn>2</mn></mrow></msubsup><mo>&#x0002E;</mo></mrow></math></div>
+<p>Both start at zero, so early estimates are biased towards zero; the correction divides by <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mn>1</mn><mo>&#x02212;</mo><msup><mi>&#x003B2;</mi><mi>t</mi></msup></mrow></math>:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mover accent="true"><mi>m</mi><mo>&#x0005E;</mo></mover><mi>t</mi></msub><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>m</mi><mi>t</mi></msub></mrow><mrow><mn>1</mn><mo>&#x02212;</mo><msubsup><mi>&#x003B2;</mi><mn>1</mn><mrow><mi>t</mi></mrow></msubsup></mrow></mfrac><mo>&#x0002C;</mo><mspace width="2em" /><msub><mover accent="true"><mi>v</mi><mo>&#x0005E;</mo></mover><mi>t</mi></msub><mo>&#x0003D;</mo><mfrac><mrow><msub><mi>v</mi><mi>t</mi></msub></mrow><mrow><mn>1</mn><mo>&#x02212;</mo><msubsup><mi>&#x003B2;</mi><mn>2</mn><mrow><mi>t</mi></mrow></msubsup></mrow></mfrac><mo>&#x0002C;</mo><mspace width="2em" /><msub><mi>&#x003B8;</mi><mi>t</mi></msub><mo>&#x0003D;</mo><msub><mi>&#x003B8;</mi><mrow><mi>t</mi><mo>&#x02212;</mo><mn>1</mn></mrow></msub><mo>&#x02212;</mo><mi>&#x003B7;</mi><mspace width="0.167em" /><mfrac><mrow><msub><mover accent="true"><mi>m</mi><mo>&#x0005E;</mo></mover><mi>t</mi></msub></mrow><mrow><msqrt><mrow><msub><mover accent="true"><mi>v</mi><mo>&#x0005E;</mo></mover><mi>t</mi></msub></mrow></msqrt><mo>&#x0002B;</mo><mi>&#x003B5;</mi></mrow></mfrac><mo>&#x0002E;</mo></mrow></math></div>
+<p>The division by <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msqrt><mrow><msub><mover accent="true"><mi>v</mi><mo>&#x0005E;</mo></mover><mi>t</mi></msub></mrow></msqrt></mrow></math> gives every parameter its own effective step size. A useful consequence: at the very first step <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mover accent="true"><mi>m</mi><mo>&#x0005E;</mo></mover><mn>1</mn></msub><mo>&#x0003D;</mo><msub><mi>g</mi><mn>1</mn></msub></mrow></math> and <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msqrt><mrow><msub><mover accent="true"><mi>v</mi><mo>&#x0005E;</mo></mover><mn>1</mn></msub></mrow></msqrt><mo>&#x0003D;</mo><mo stretchy="false">&#x0007C;</mo><msub><mi>g</mi><mn>1</mn></msub><mo stretchy="false">&#x0007C;</mo></mrow></math>, so the update has size about <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B7;</mi></mrow></math> <strong>regardless of how large or small the gradient is</strong>. Measured with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B7;</mi><mo>&#x0003D;</mo><mn>0.01</mn></mrow></math>, a gradient of 123 and a gradient of 0.001 both moved the parameter by about 0.01. Adam is thus largely insensitive to the gradient's scale, which is one reason it is robust for transformers; the price is that <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B7;</mi></mrow></math> must still be chosen with care.</p>
+<h3 id="weight-decay-l2-versus-adamw">Weight decay: L2 versus AdamW</h3>
+<p>Weight decay shrinks weights to discourage large values. In <strong>Adam with L2 regularisation</strong> the penalty <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003BB;</mi><mi>&#x003B8;</mi></mrow></math> is added to the gradient, so it passes through the adaptive scaling and decays parameters unevenly. <strong>AdamW</strong> (Loshchilov and Hutter, 2019) <em>decouples</em> the decay: weights are first shrunk directly, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003B8;</mi><mo>&#x02190;</mo><mo stretchy="false">&#x00028;</mo><mn>1</mn><mo>&#x02212;</mo><mi>&#x003B7;</mi><mi>&#x003BB;</mi><mo stretchy="false">&#x00029;</mo><mi>&#x003B8;</mi></mrow></math>, and only then updated by the Adam rule. The reference run uses AdamW with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>&#x003BB;</mi><mo>&#x0003D;</mo><mn>0.01</mn></mrow></math>.</p>
+<div class="admonition note">
+<p class="admonition-title">A simplification to be aware of</p>
+<p>The implementation applies the same weight decay to every parameter, including biases, LayerNorm scales and embeddings. Large-scale training usually excludes these. At this scale the difference is small.</p>
+</div>
+<h3 id="choices-offered">Choices offered</h3>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>adam</code></td>
+<td>hand-written Adam with L2 decay</td>
+</tr>
+<tr>
+<td><code>adamw</code></td>
+<td>hand-written Adam with decoupled decay (default)</td>
+</tr>
+<tr>
+<td><code>sgd</code></td>
+<td>hand-written SGD with momentum</td>
+</tr>
+<tr>
+<td><code>torch_adamw</code>, <code>torch_sgd</code></td>
+<td>PyTorch's reference implementations, for comparison</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="learning-rate-schedule">Learning-rate schedule</h2>
+<p>A fixed learning rate is rarely best. At the start the weights are random and Adam's moment estimates are poor, so large steps can derail training; near the end smaller steps let the model settle. The schedule used here (two options exist: <code>warmup_cosine</code> and <code>constant</code>) has two phases (Loshchilov and Hutter, 2017; Goyal et al., 2017):</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>&#x003B7;</mi><mi>t</mi></msub><mo>&#x0003D;</mo><mrow><mo stretchy="true" fence="true" form="prefix">&#x0007B;</mo><mtable><mtr><mtd columnalign="left"><msub><mi>&#x003B7;</mi><mrow><mo>max</mo></mrow></msub><mspace width="0.167em" /><mstyle displaystyle="true" scriptlevel="0"><mfrac><mrow><mi>t</mi><mo>&#x0002B;</mo><mn>1</mn></mrow><mrow><msub><mi>t</mi><mi>w</mi></msub></mrow></mfrac></mstyle></mtd><mtd columnalign="left"><mi>t</mi><mo>&#x0003C;</mo><msub><mi>t</mi><mi>w</mi></msub><mspace width="1em" /><mtext>(linear&#x000A0;warm-up)</mtext></mtd></mtr><mtr><mtd columnalign="left"><mo stretchy="false">[</mo><mn>2ex</mn><mo stretchy="false">]</mo><msub><mi>&#x003B7;</mi><mrow><mo>min</mo></mrow></msub><mo>&#x0002B;</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mo stretchy="false">&#x00028;</mo><msub><mi>&#x003B7;</mi><mrow><mo>max</mo></mrow></msub><mo>&#x02212;</mo><msub><mi>&#x003B7;</mi><mrow><mo>min</mo></mrow></msub><mo stretchy="false">&#x00029;</mo><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mn>1</mn><mo>&#x0002B;</mo><mi>cos</mi><mi>&#x003C0;</mi><mstyle displaystyle="true" scriptlevel="0"><mfrac><mrow><mi>t</mi><mo>&#x02212;</mo><msub><mi>t</mi><mi>w</mi></msub></mrow><mrow><msub><mi>T</mi><mrow><mtext>total</mtext></mrow></msub><mo>&#x02212;</mo><msub><mi>t</mi><mi>w</mi></msub></mrow></mfrac></mstyle><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow></mtd><mtd columnalign="left"><mi>t</mi><mo>&#x02265;</mo><msub><mi>t</mi><mi>w</mi></msub><mspace width="1em" /><mtext>(cosine&#x000A0;decay)</mtext></mtd></mtr></mtable></mrow></mrow></math></div>
+<p>with <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003B7;</mi><mrow><mo>min</mo></mrow></msub><mo>&#x0003D;</mo><mi>r</mi><mspace width="0.167em" /><msub><mi>&#x003B7;</mi><mrow><mo>max</mo></mrow></msub></mrow></math> (here <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>r</mi><mo>&#x0003D;</mo><mn>0.1</mn></mrow></math>). For the reference run, <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>&#x003B7;</mi><mrow><mo>max</mo></mrow></msub><mo>&#x0003D;</mo><mn>0.003</mn></mrow></math>, warm-up <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><msub><mi>t</mi><mi>w</mi></msub><mo>&#x0003D;</mo><mn>20</mn></mrow></math> steps, and the rate ends at 0.0003. Computed values: step 0 gives 0.00015, step 19 reaches 0.003, step 160 gives 0.00165 and step 299 gives 0.0003.</p>
+<figure class="chart" id="chart-lr"><figcaption><strong>Learning-rate schedule of the reference run.</strong> Linear warm-up over 20 steps to 0.003, then cosine decay to 0.0003 at step 300.</figcaption><svg class="chart-svg" viewBox="0 0 720 340" role="img" aria-labelledby="chart-lr-t chart-lr-d" xmlns="http://www.w3.org/2000/svg"><title id="chart-lr-t">Learning-rate schedule of the reference run</title><desc id="chart-lr-d">Linear warm-up over 20 steps to 0.003, then cosine decay to 0.0003 at step 300.</desc><rect class="plot-bg" x="64" y="18" width="632" height="270"/><line class="grid" x1="64" x2="696" y1="203.4" y2="203.4"/><text class="tick" x="56" y="207.4" text-anchor="end">0.0010</text><line class="grid" x1="64" x2="696" y1="115.7" y2="115.7"/><text class="tick" x="56" y="119.7" text-anchor="end">0.0020</text><line class="grid" x1="64" x2="696" y1="28.0" y2="28.0"/><text class="tick" x="56" y="32.0" text-anchor="end">0.0030</text><line class="grid" x1="167.6" x2="167.6" y1="18" y2="288"/><text class="tick" x="167.6" y="306" text-anchor="middle">50</text><line class="grid" x1="273.3" x2="273.3" y1="18" y2="288"/><text class="tick" x="273.3" y="306" text-anchor="middle">100</text><line class="grid" x1="378.9" x2="378.9" y1="18" y2="288"/><text class="tick" x="378.9" y="306" text-anchor="middle">150</text><line class="grid" x1="484.6" x2="484.6" y1="18" y2="288"/><text class="tick" x="484.6" y="306" text-anchor="middle">200</text><line class="grid" x1="590.3" x2="590.3" y1="18" y2="288"/><text class="tick" x="590.3" y="306" text-anchor="middle">250</text><line class="grid" x1="696.0" x2="696.0" y1="18" y2="288"/><text class="tick" x="696.0" y="306" text-anchor="middle">300</text><line class="axis" x1="64" x2="696" y1="288" y2="288"/><line class="axis" x1="64" x2="64" y1="18" y2="288"/><text class="label" x="380" y="332" text-anchor="middle">step</text><text class="label" transform="translate(16 153) rotate(-90)" text-anchor="middle">learning rate</text><polyline class="line s1" points="64.0,278.0 66.1,264.8 68.2,251.7 70.3,238.5 72.5,225.4 74.6,212.2 76.7,199.1 78.8,185.9 80.9,172.7 83.0,159.6 85.1,146.4 87.3,133.3 89.4,120.1 91.5,106.9 93.6,93.8 95.7,80.6 97.8,67.5 99.9,54.3 102.0,41.2 104.2,28.0 106.3,28.0 108.4,28.0 110.5,28.0 112.6,28.1 114.7,28.1 116.8,28.2 119.0,28.3 121.1,28.4 123.2,28.4 125.3,28.6 127.4,28.7 129.5,28.9 131.6,29.1 133.8,29.2 135.9,29.5 138.0,29.7 140.1,29.9 142.2,30.1 144.3,30.4 146.4,30.7 148.5,31.0 150.7,31.2 152.8,31.6 154.9,31.9 157.0,32.3 159.1,32.6 161.2,33.0 163.3,33.4 165.5,33.8 167.6,34.2 169.7,34.7 171.8,35.1 173.9,35.5 176.0,36.0 178.1,36.5 180.3,37.0 182.4,37.6 184.5,38.1 186.6,38.6 188.7,39.1 190.8,39.8 192.9,40.3 195.1,40.9 197.2,41.5 199.3,42.1 201.4,42.7 203.5,43.4 205.6,44.1 207.7,44.8 209.8,45.5 212.0,46.2 214.1,46.9 216.2,47.6 218.3,48.4 220.4,49.1 222.5,49.8 224.6,50.6 226.8,51.4 228.9,52.2 231.0,53.0 233.1,53.9 235.2,54.7 237.3,55.5 239.4,56.3 241.6,57.2 243.7,58.1 245.8,59.1 247.9,59.9 250.0,60.8 252.1,61.8 254.2,62.6 256.3,63.6 258.5,64.6 260.6,65.5 262.7,66.5 264.8,67.5 266.9,68.5 269.0,69.5 271.1,70.5 273.3,71.5 275.4,72.6 277.5,73.6 279.6,74.7 281.7,75.7 283.8,76.8 285.9,77.9 288.1,79.0 290.2,80.1 292.3,81.2 294.4,82.3 296.5,83.4 298.6,84.6 300.7,85.7 302.8,86.9 305.0,88.0 307.1,89.1 309.2,90.3 311.3,91.5 313.4,92.6 315.5,93.9 317.6,95.0 319.8,96.2 321.9,97.5 324.0,98.7 326.1,99.8 328.2,101.1 330.3,102.3 332.4,103.5 334.6,104.8 336.7,106.1 338.8,107.3 340.9,108.5 343.0,109.8 345.1,111.1 347.2,112.4 349.4,113.6 351.5,114.9 353.6,116.2 355.7,117.5 357.8,118.8 359.9,120.1 362.0,121.3 364.1,122.6 366.3,124.0 368.4,125.3 370.5,126.6 372.6,127.9 374.7,129.2 376.8,130.5 378.9,131.9 381.1,133.2 383.2,134.5 385.3,135.8 387.4,137.1 389.5,138.4 391.6,139.8 393.7,141.1 395.9,142.5 398.0,143.8 400.1,145.1 402.2,146.4 404.3,147.7 406.4,149.1 408.5,150.4 410.6,151.8 412.8,153.1 414.9,154.4 417.0,155.7 419.1,157.0 421.2,158.4 423.3,159.7 425.4,161.0 427.6,162.3 429.7,163.6 431.8,164.9 433.9,166.2 436.0,167.6 438.1,168.9 440.2,170.2 442.4,171.5 444.5,172.7 446.6,174.1 448.7,175.4 450.8,176.7 452.9,177.9 455.0,179.2 457.2,180.5 459.3,181.8 461.4,183.0 463.5,184.3 465.6,185.5 467.7,186.8 469.8,188.0 471.9,189.3 474.1,190.5 476.2,191.8 478.3,193.0 480.4,194.1 482.5,195.4 484.6,196.6 486.7,197.8 488.9,199.0 491.0,200.2 493.1,201.3 495.2,202.6 497.3,203.7 499.4,204.8 501.5,206.0 503.7,207.1 505.8,208.3 507.9,209.4 510.0,210.5 512.1,211.7 514.2,212.7 516.3,213.9 518.4,214.9 520.6,216.1 522.7,217.1 524.8,218.2 526.9,219.2 529.0,220.3 531.1,221.3 533.2,222.3 535.4,223.4 537.5,224.3 539.6,225.4 541.7,226.3 543.8,227.3 545.9,228.3 548.0,229.2 550.2,230.2 552.3,231.1 554.4,232.0 556.5,232.9 558.6,233.8 560.7,234.8 562.8,235.6 564.9,236.5 567.1,237.3 569.2,238.2 571.3,239.0 573.4,239.8 575.5,240.6 577.6,241.4 579.7,242.2 581.9,243.0 584.0,243.8 586.1,244.5 588.2,245.3 590.3,246.0 592.4,246.7 594.5,247.4 596.7,248.1 598.8,248.8 600.9,249.4 603.0,250.1 605.1,250.7 607.2,251.3 609.3,251.9 611.5,252.6 613.6,253.1 615.7,253.7 617.8,254.2 619.9,254.8 622.0,255.3 624.1,255.8 626.2,256.3 628.4,256.9 630.5,257.3 632.6,257.7 634.7,258.2 636.8,258.6 638.9,259.1 641.0,259.5 643.2,259.8 645.3,260.2 647.4,260.5 649.5,260.9 651.6,261.2 653.7,261.6 655.8,261.9 658.0,262.1 660.1,262.5 662.2,262.7 664.3,262.9 666.4,263.2 668.5,263.4 670.6,263.6 672.7,263.8 674.9,264.0 677.0,264.1 679.1,264.2 681.2,264.4 683.3,264.5 685.4,264.6 687.5,264.7 689.7,264.8 691.8,264.8 693.9,264.8 696.0,264.8"/></svg><ul class="legend"><li><svg width="30" height="10" aria-hidden="true"><line class="line s1" x1="0" x2="30" y1="5" y2="5"/></svg> learning rate</li></ul><details class="data"><summary>Show the data behind this chart</summary><div class="scroll" tabindex="0"><div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table><caption>Learning-rate schedule of the reference run (sampled steps)</caption><thead><tr><th scope="col">step</th><th scope="col">learning rate</th></tr></thead><tbody><tr><th scope="row">1</th><td>0.00015</td></tr><tr><th scope="row">25</th><td>0.00300</td></tr><tr><th scope="row">49</th><td>0.00293</td></tr><tr><th scope="row">73</th><td>0.00278</td></tr><tr><th scope="row">97</th><td>0.00254</td></tr><tr><th scope="row">121</th><td>0.00224</td></tr><tr><th scope="row">145</th><td>0.00189</td></tr><tr><th scope="row">169</th><td>0.00153</td></tr><tr><th scope="row">193</th><td>0.00118</td></tr><tr><th scope="row">217</th><td>0.00086</td></tr><tr><th scope="row">241</th><td>0.00060</td></tr><tr><th scope="row">265</th><td>0.00041</td></tr><tr><th scope="row">289</th><td>0.00031</td></tr><tr><th scope="row">300</th><td>0.00030</td></tr></tbody></table></div></div></details></figure>
+<h2 id="gradient-clipping">Gradient clipping</h2>
+<p>Occasionally a batch produces a very large gradient (a loss spike), and one huge step can undo much progress. <strong>Global-norm clipping</strong> (Pascanu et al., 2013) rescales the whole gradient vector if its L2 norm exceeds a threshold <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mrow><mi>c</mi></mrow></math>:</p>
+<div class="eq"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>g</mi><mo>&#x02190;</mo><mi>g</mi><mo>&#x000B7;</mo><mo>min</mo><mspace width="negativethinmathspace" /><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mn>1</mn><mo>&#x0002C;</mo><mfrac><mrow><mi>c</mi></mrow><mrow><mo>&#x02016;</mo><mi>g</mi><msub><mo>&#x02016;</mo><mn>2</mn></msub></mrow></mfrac><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow><mo>&#x0002E;</mo></mrow></math></div>
+<p>The direction is preserved; only the length is capped. The reported gradient norm is the value <em>before</em> clipping, which makes it a useful health signal. In the reference run it starts at 1.383, peaks at about 1.44 and ends at 0.227, with a clipping threshold of 1. The norm exceeded the threshold in only 14 of the 300 steps, all of them among the first 14, so clipping acted only at the very start (the peak was at step 3); afterwards gradients were left untouched.</p>
+<figure class="chart" id="chart-gradnorm"><figcaption><strong>Gradient norm of the reference run.</strong> Global L2 norm of the gradient before clipping; the clipping threshold is 1.</figcaption><svg class="chart-svg" viewBox="0 0 720 340" role="img" aria-labelledby="chart-gradnorm-t chart-gradnorm-d" xmlns="http://www.w3.org/2000/svg"><title id="chart-gradnorm-t">Gradient norm of the reference run</title><desc id="chart-gradnorm-d">Global L2 norm of the gradient before clipping; the clipping threshold is 1.</desc><rect class="plot-bg" x="64" y="18" width="632" height="270"/><line class="grid" x1="64" x2="696" y1="214.8" y2="214.8"/><text class="tick" x="56" y="218.8" text-anchor="end">0.50</text><line class="grid" x1="64" x2="696" y1="115.0" y2="115.0"/><text class="tick" x="56" y="119.0" text-anchor="end">1.00</text><line class="grid" x1="167.6" x2="167.6" y1="18" y2="288"/><text class="tick" x="167.6" y="306" text-anchor="middle">50</text><line class="grid" x1="273.3" x2="273.3" y1="18" y2="288"/><text class="tick" x="273.3" y="306" text-anchor="middle">100</text><line class="grid" x1="378.9" x2="378.9" y1="18" y2="288"/><text class="tick" x="378.9" y="306" text-anchor="middle">150</text><line class="grid" x1="484.6" x2="484.6" y1="18" y2="288"/><text class="tick" x="484.6" y="306" text-anchor="middle">200</text><line class="grid" x1="590.3" x2="590.3" y1="18" y2="288"/><text class="tick" x="590.3" y="306" text-anchor="middle">250</text><line class="grid" x1="696.0" x2="696.0" y1="18" y2="288"/><text class="tick" x="696.0" y="306" text-anchor="middle">300</text><line class="axis" x1="64" x2="696" y1="288" y2="288"/><line class="axis" x1="64" x2="64" y1="18" y2="288"/><text class="label" x="380" y="332" text-anchor="middle">step</text><text class="label" transform="translate(16 153) rotate(-90)" text-anchor="middle">gradient norm</text><line class="ref" x1="64" x2="696" y1="115.0" y2="115.0"/><text class="tick" x="692" y="110.0" text-anchor="end">clip threshold 1</text><polyline class="line s0" points="64.0,38.7 66.1,29.7 68.2,28.0 70.3,38.8 72.5,39.6 74.6,60.5 76.7,49.5 78.8,28.7 80.9,50.2 83.0,32.7 85.1,71.4 87.3,73.3 89.4,85.4 91.5,86.6 93.6,120.3 95.7,148.7 97.8,144.4 99.9,176.8 102.0,192.5 104.2,245.6 106.3,253.9 108.4,244.8 110.5,240.7 112.6,201.0 114.7,192.0 116.8,195.7 119.0,196.5 121.1,222.9 123.2,246.9 125.3,245.2 127.4,252.6 129.5,243.3 131.6,224.9 133.8,227.5 135.9,214.1 138.0,232.8 140.1,224.5 142.2,258.8 144.3,248.9 146.4,230.3 148.5,237.2 150.7,245.1 152.8,239.8 154.9,232.9 157.0,225.4 159.1,193.1 161.2,265.4 163.3,258.6 165.5,238.7 167.6,236.1 169.7,234.2 171.8,259.3 173.9,229.7 176.0,256.3 178.1,262.0 180.3,242.0 182.4,259.5 184.5,234.2 186.6,242.5 188.7,262.6 190.8,244.0 192.9,253.0 195.1,247.1 197.2,264.0 199.3,235.2 201.4,257.3 203.5,259.8 205.6,233.8 207.7,247.9 209.8,240.3 212.0,250.7 214.1,238.6 216.2,243.0 218.3,240.3 220.4,244.6 222.5,253.8 224.6,252.5 226.8,247.7 228.9,255.7 231.0,219.4 233.1,252.1 235.2,263.6 237.3,248.1 239.4,231.5 241.6,253.9 243.7,236.5 245.8,244.1 247.9,240.7 250.0,254.2 252.1,252.4 254.2,241.5 256.3,240.5 258.5,260.7 260.6,256.8 262.7,243.4 264.8,250.0 266.9,254.0 269.0,276.2 271.1,247.7 273.3,233.8 275.4,232.7 277.5,245.6 279.6,252.0 281.7,239.4 283.8,246.9 285.9,237.7 288.1,254.5 290.2,244.8 292.3,239.3 294.4,240.0 296.5,253.7 298.6,245.1 300.7,253.8 302.8,221.4 305.0,222.9 307.1,244.9 309.2,244.4 311.3,236.6 313.4,261.3 315.5,243.7 317.6,245.8 319.8,245.3 321.9,246.2 324.0,261.5 326.1,246.0 328.2,213.6 330.3,267.3 332.4,246.6 334.6,234.7 336.7,220.6 338.8,244.1 340.9,268.7 343.0,241.6 345.1,228.5 347.2,239.3 349.4,229.3 351.5,225.5 353.6,213.8 355.7,227.1 357.8,251.9 359.9,201.6 362.0,256.9 364.1,247.0 366.3,247.4 368.4,231.5 370.5,241.0 372.6,242.0 374.7,260.3 376.8,259.4 378.9,253.2 381.1,256.5 383.2,235.0 385.3,240.7 387.4,242.7 389.5,231.3 391.6,261.0 393.7,249.0 395.9,261.7 398.0,237.9 400.1,238.2 402.2,233.4 404.3,239.8 406.4,257.9 408.5,254.4 410.6,256.2 412.8,236.1 414.9,240.2 417.0,232.9 419.1,255.4 421.2,250.8 423.3,251.1 425.4,265.6 427.6,247.8 429.7,237.1 431.8,229.8 433.9,235.8 436.0,245.0 438.1,245.4 440.2,253.9 442.4,248.9 444.5,265.1 446.6,253.6 448.7,270.3 450.8,270.8 452.9,241.1 455.0,257.5 457.2,236.6 459.3,260.0 461.4,256.7 463.5,247.6 465.6,273.7 467.7,246.5 469.8,249.3 471.9,249.8 474.1,265.2 476.2,249.4 478.3,248.5 480.4,259.2 482.5,249.8 484.6,207.4 486.7,271.0 488.9,266.6 491.0,254.3 493.1,239.3 495.2,254.0 497.3,259.1 499.4,226.6 501.5,256.1 503.7,249.6 505.8,256.5 507.9,260.0 510.0,242.3 512.1,246.8 514.2,255.4 516.3,236.5 518.4,248.2 520.6,222.8 522.7,251.8 524.8,239.3 526.9,238.7 529.0,259.4 531.1,246.4 533.2,253.0 535.4,261.0 537.5,254.0 539.6,251.7 541.7,223.7 543.8,232.2 545.9,238.6 548.0,238.2 550.2,248.6 552.3,245.9 554.4,271.7 556.5,249.5 558.6,243.5 560.7,246.0 562.8,242.8 564.9,257.5 567.1,246.2 569.2,259.8 571.3,258.1 573.4,226.0 575.5,245.9 577.6,265.3 579.7,268.3 581.9,234.9 584.0,254.4 586.1,278.0 588.2,233.1 590.3,255.3 592.4,254.3 594.5,265.4 596.7,245.6 598.8,245.7 600.9,271.9 603.0,245.2 605.1,248.7 607.2,253.6 609.3,238.3 611.5,243.7 613.6,241.7 615.7,253.7 617.8,253.9 619.9,257.4 622.0,240.5 624.1,259.9 626.2,272.5 628.4,237.6 630.5,268.4 632.6,264.0 634.7,249.3 636.8,239.5 638.9,232.2 641.0,235.2 643.2,255.3 645.3,238.2 647.4,257.0 649.5,251.5 651.6,247.3 653.7,224.7 655.8,246.5 658.0,260.2 660.1,247.5 662.2,258.1 664.3,255.7 666.4,228.9 668.5,270.9 670.6,245.2 672.7,276.7 674.9,250.9 677.0,230.7 679.1,231.2 681.2,241.8 683.3,259.2 685.4,252.6 687.5,250.7 689.7,228.5 691.8,251.1 693.9,270.2 696.0,269.1"/></svg><ul class="legend"><li><svg width="30" height="10" aria-hidden="true"><line class="line s0" x1="0" x2="30" y1="5" y2="5"/></svg> gradient norm</li><li><svg width="30" height="10" aria-hidden="true"><line class="ref" x1="0" x2="30" y1="5" y2="5"/></svg> clip threshold 1</li></ul><details class="data"><summary>Show the data behind this chart</summary><div class="scroll" tabindex="0"><div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table><caption>Gradient norm of the reference run (sampled steps)</caption><thead><tr><th scope="col">step</th><th scope="col">gradient norm</th></tr></thead><tbody><tr><th scope="row">1</th><td>1.383</td></tr><tr><th scope="row">25</th><td>0.614</td></tr><tr><th scope="row">49</th><td>0.380</td></tr><tr><th scope="row">73</th><td>0.358</td></tr><tr><th scope="row">97</th><td>0.303</td></tr><tr><th scope="row">121</th><td>0.344</td></tr><tr><th scope="row">145</th><td>0.416</td></tr><tr><th scope="row">169</th><td>0.296</td></tr><tr><th scope="row">193</th><td>0.327</td></tr><tr><th scope="row">217</th><td>0.460</td></tr><tr><th scope="row">241</th><td>0.283</td></tr><tr><th scope="row">265</th><td>0.371</td></tr><tr><th scope="row">289</th><td>0.189</td></tr><tr><th scope="row">300</th><td>0.227</td></tr></tbody></table></div></div></details></figure>
+<h2 id="reading-the-loss-curves">Reading the loss curves</h2>
+<figure class="chart" id="chart-loss"><figcaption><strong>Cross-entropy loss during the reference run.</strong> Training loss falls from 3.967 to 3.037 in 300 steps; validation loss ends at 3.086. The dotted line is the loss of a uniform guesser, ln(51).</figcaption><svg class="chart-svg" viewBox="0 0 720 340" role="img" aria-labelledby="chart-loss-t chart-loss-d" xmlns="http://www.w3.org/2000/svg"><title id="chart-loss-t">Cross-entropy loss during the reference run</title><desc id="chart-loss-d">Training loss falls from 3.967 to 3.037 in 300 steps; validation loss ends at 3.086. The dotted line is the loss of a uniform guesser, ln(51).</desc><rect class="plot-bg" x="64" y="18" width="632" height="270"/><line class="grid" x1="64" x2="696" y1="256.0" y2="256.0"/><text class="tick" x="56" y="260.0" text-anchor="end">3.00</text><line class="grid" x1="64" x2="696" y1="138.1" y2="138.1"/><text class="tick" x="56" y="142.1" text-anchor="end">3.50</text><line class="grid" x1="167.6" x2="167.6" y1="18" y2="288"/><text class="tick" x="167.6" y="306" text-anchor="middle">50</text><line class="grid" x1="273.3" x2="273.3" y1="18" y2="288"/><text class="tick" x="273.3" y="306" text-anchor="middle">100</text><line class="grid" x1="378.9" x2="378.9" y1="18" y2="288"/><text class="tick" x="378.9" y="306" text-anchor="middle">150</text><line class="grid" x1="484.6" x2="484.6" y1="18" y2="288"/><text class="tick" x="484.6" y="306" text-anchor="middle">200</text><line class="grid" x1="590.3" x2="590.3" y1="18" y2="288"/><text class="tick" x="590.3" y="306" text-anchor="middle">250</text><line class="grid" x1="696.0" x2="696.0" y1="18" y2="288"/><text class="tick" x="696.0" y="306" text-anchor="middle">300</text><line class="axis" x1="64" x2="696" y1="288" y2="288"/><line class="axis" x1="64" x2="64" y1="18" y2="288"/><text class="label" x="380" y="332" text-anchor="middle">step</text><text class="label" transform="translate(16 153) rotate(-90)" text-anchor="middle">loss (nats per token)</text><line class="ref" x1="64" x2="696" y1="36.3" y2="36.3"/><text class="tick" x="692" y="31.3" text-anchor="end">uniform guess ln(51) = 3.932</text><polyline class="line s0 thin" points="64.0,28.0 66.1,30.6 68.2,39.7 70.3,44.2 72.5,56.2 74.6,68.8 76.7,88.6 78.8,106.9 80.9,117.1 83.0,138.6 85.1,142.0 87.3,160.4 89.4,177.5 91.5,190.8 93.6,201.9 95.7,211.6 97.8,224.1 99.9,231.7 102.0,225.2 104.2,219.3 106.3,233.8 108.4,237.3 110.5,254.4 112.6,225.3 114.7,237.2 116.8,236.2 119.0,228.6 121.1,232.5 123.2,256.9 125.3,241.2 127.4,255.2 129.5,229.1 131.6,239.1 133.8,240.2 135.9,247.3 138.0,240.5 140.1,245.8 142.2,248.0 144.3,252.5 146.4,219.8 148.5,260.6 150.7,253.4 152.8,237.6 154.9,240.2 157.0,235.3 159.1,219.4 161.2,250.9 163.3,233.1 165.5,234.1 167.6,242.4 169.7,249.5 171.8,253.0 173.9,253.1 176.0,254.7 178.1,246.0 180.3,239.6 182.4,255.5 184.5,236.3 186.6,258.3 188.7,249.7 190.8,263.2 192.9,244.0 195.1,254.0 197.2,265.3 199.3,248.5 201.4,247.8 203.5,251.2 205.6,231.7 207.7,252.1 209.8,240.0 212.0,252.8 214.1,238.8 216.2,245.5 218.3,247.6 220.4,241.4 222.5,245.9 224.6,240.2 226.8,233.3 228.9,245.2 231.0,231.9 233.1,252.7 235.2,239.7 237.3,251.8 239.4,232.6 241.6,254.8 243.7,242.8 245.8,243.0 247.9,229.6 250.0,237.4 252.1,244.6 254.2,261.3 256.3,228.3 258.5,247.3 260.6,249.7 262.7,262.4 264.8,265.5 266.9,262.1 269.0,256.5 271.1,248.2 273.3,249.4 275.4,253.6 277.5,263.7 279.6,243.4 281.7,247.4 283.8,266.6 285.9,232.6 288.1,252.7 290.2,255.0 292.3,243.0 294.4,247.3 296.5,225.3 298.6,244.7 300.7,245.5 302.8,233.6 305.0,246.7 307.1,236.4 309.2,250.1 311.3,268.0 313.4,234.6 315.5,241.2 317.6,238.2 319.8,254.7 321.9,240.6 324.0,250.3 326.1,258.3 328.2,224.9 330.3,263.2 332.4,266.4 334.6,241.4 336.7,267.3 338.8,251.9 340.9,254.9 343.0,267.4 345.1,264.2 347.2,250.0 349.4,250.6 351.5,240.8 353.6,239.8 355.7,230.6 357.8,267.0 359.9,249.3 362.0,248.3 364.1,248.5 366.3,258.0 368.4,232.2 370.5,261.7 372.6,250.4 374.7,242.0 376.8,247.5 378.9,254.0 381.1,258.4 383.2,252.9 385.3,249.7 387.4,251.6 389.5,228.1 391.6,232.1 393.7,237.2 395.9,239.0 398.0,245.0 400.1,238.8 402.2,236.3 404.3,252.0 406.4,253.5 408.5,240.3 410.6,235.3 412.8,260.1 414.9,253.6 417.0,246.2 419.1,255.0 421.2,238.9 423.3,260.8 425.4,228.6 427.6,238.8 429.7,243.7 431.8,273.0 433.9,241.9 436.0,256.4 438.1,252.7 440.2,235.2 442.4,256.3 444.5,254.3 446.6,247.0 448.7,260.0 450.8,257.1 452.9,243.6 455.0,241.6 457.2,242.0 459.3,244.5 461.4,245.0 463.5,252.6 465.6,252.6 467.7,236.6 469.8,257.0 471.9,265.5 474.1,251.3 476.2,254.3 478.3,248.0 480.4,241.9 482.5,252.1 484.6,214.7 486.7,254.1 488.9,241.9 491.0,251.1 493.1,249.4 495.2,239.7 497.3,249.8 499.4,239.7 501.5,246.0 503.7,243.3 505.8,228.7 507.9,248.2 510.0,260.8 512.1,232.9 514.2,256.4 516.3,235.9 518.4,245.1 520.6,261.9 522.7,252.2 524.8,256.0 526.9,268.0 529.0,260.8 531.1,238.2 533.2,250.4 535.4,254.8 537.5,239.2 539.6,252.8 541.7,231.8 543.8,254.9 545.9,238.6 548.0,264.3 550.2,240.4 552.3,248.5 554.4,257.1 556.5,232.4 558.6,259.0 560.7,249.1 562.8,236.4 564.9,249.7 567.1,242.7 569.2,239.1 571.3,247.8 573.4,235.4 575.5,257.1 577.6,240.8 579.7,257.1 581.9,254.9 584.0,229.9 586.1,239.0 588.2,237.5 590.3,256.6 592.4,256.0 594.5,237.8 596.7,259.6 598.8,255.2 600.9,249.6 603.0,266.0 605.1,247.8 607.2,253.4 609.3,239.3 611.5,244.4 613.6,271.8 615.7,262.4 617.8,235.9 619.9,241.9 622.0,236.8 624.1,251.5 626.2,242.7 628.4,221.3 630.5,243.9 632.6,253.9 634.7,236.4 636.8,262.1 638.9,236.5 641.0,231.7 643.2,257.7 645.3,240.7 647.4,263.4 649.5,239.6 651.6,247.1 653.7,253.9 655.8,244.4 658.0,229.6 660.1,258.0 662.2,248.2 664.3,249.4 666.4,278.0 668.5,240.0 670.6,248.5 672.7,252.1 674.9,239.5 677.0,238.9 679.1,243.9 681.2,244.3 683.3,243.5 685.4,243.1 687.5,237.8 689.7,247.1 691.8,249.1 693.9,248.8 696.0,247.2"/><polyline class="line s1" points="64.0,28.0 66.1,29.3 68.2,32.8 70.3,35.6 72.5,39.8 74.6,44.6 76.7,50.9 78.8,57.9 80.9,64.5 83.0,71.9 85.1,78.2 87.3,85.1 89.4,92.2 91.5,99.2 93.6,106.1 95.7,118.3 97.8,131.2 99.9,144.0 102.0,156.1 104.2,167.0 106.3,178.0 108.4,187.9 110.5,197.7 112.6,204.9 114.7,211.5 116.8,217.8 119.0,222.3 121.1,226.0 123.2,230.4 125.3,233.0 127.4,235.9 129.5,236.3 131.6,236.8 133.8,237.8 135.9,239.6 138.0,240.1 140.1,240.6 142.2,240.2 144.3,242.0 146.4,240.9 148.5,242.5 150.7,244.1 152.8,244.5 154.9,243.4 157.0,243.0 159.1,240.6 161.2,242.0 163.3,241.6 165.5,241.2 167.6,240.9 169.7,241.5 171.8,242.0 173.9,242.3 176.0,242.5 178.1,244.2 180.3,242.8 182.4,243.0 184.5,242.9 186.6,244.1 188.7,245.0 190.8,248.0 192.9,247.5 195.1,248.9 197.2,251.0 199.3,251.4 201.4,251.3 203.5,251.2 205.6,249.7 207.7,249.5 209.8,249.2 212.0,250.0 214.1,248.9 216.2,249.5 218.3,248.8 220.4,248.3 222.5,247.1 224.6,246.9 226.8,245.5 228.9,244.1 231.0,243.0 233.1,243.4 235.2,242.6 237.3,243.9 239.4,242.6 241.6,243.6 243.7,242.9 245.8,243.2 247.9,242.2 250.0,241.5 252.1,241.7 254.2,242.7 256.3,241.9 258.5,242.9 260.6,243.2 262.7,245.2 264.8,246.0 266.9,247.5 269.0,247.9 271.1,248.9 273.3,248.5 275.4,249.3 277.5,250.6 279.6,251.6 281.7,252.2 283.8,253.7 285.9,251.8 288.1,253.4 290.2,253.9 292.3,253.5 294.4,252.5 296.5,249.8 298.6,248.6 300.7,247.9 302.8,246.9 305.0,246.7 307.1,245.6 309.2,244.7 311.3,246.3 313.4,245.5 315.5,243.8 317.6,244.2 319.8,244.3 321.9,243.3 324.0,243.8 326.1,244.5 328.2,244.5 330.3,245.8 332.4,247.1 334.6,247.7 336.7,249.0 338.8,250.1 340.9,250.4 343.0,250.4 345.1,252.3 347.2,252.9 349.4,253.7 351.5,252.8 353.6,252.8 355.7,251.4 357.8,252.0 359.9,253.6 362.0,252.6 364.1,251.5 366.3,252.6 368.4,250.2 370.5,250.9 372.6,250.6 374.7,248.9 376.8,247.8 378.9,248.0 381.1,248.6 383.2,249.4 385.3,250.0 387.4,251.4 389.5,248.8 391.6,247.7 393.7,246.9 395.9,246.3 398.0,245.5 400.1,245.9 402.2,244.2 404.3,244.3 406.4,245.1 408.5,244.6 410.6,243.4 412.8,243.5 414.9,243.5 417.0,243.3 419.1,243.5 421.2,244.2 423.3,246.1 425.4,245.6 427.6,245.5 429.7,245.5 431.8,247.7 433.9,248.1 436.0,248.4 438.1,248.3 440.2,248.0 442.4,249.4 444.5,249.0 446.6,248.6 448.7,249.5 450.8,249.6 452.9,250.0 455.0,248.7 457.2,249.6 459.3,250.0 461.4,250.0 463.5,248.7 465.6,249.4 467.7,248.1 469.8,248.4 471.9,250.4 474.1,250.0 476.2,250.0 478.3,250.1 480.4,248.9 482.5,248.6 484.6,246.6 486.7,247.5 488.9,247.5 491.0,247.9 493.1,248.2 495.2,247.3 497.3,247.2 499.4,247.4 501.5,246.6 503.7,245.1 505.8,243.6 507.9,243.2 510.0,244.1 512.1,243.5 514.2,243.8 516.3,245.2 518.4,244.6 520.6,245.9 522.7,246.0 524.8,246.4 526.9,248.3 529.0,249.0 531.1,248.9 533.2,249.2 535.4,250.0 537.5,250.7 539.6,251.0 541.7,249.1 543.8,250.5 545.9,249.4 548.0,251.3 550.2,250.9 552.3,250.0 554.4,250.4 556.5,248.8 558.6,248.2 560.7,247.4 562.8,247.3 564.9,247.3 567.1,246.5 569.2,246.4 571.3,246.1 573.4,246.4 575.5,246.5 577.6,246.7 579.7,246.2 581.9,247.1 584.0,245.9 586.1,244.7 588.2,245.0 590.3,244.9 592.4,245.3 594.5,245.4 596.7,246.1 598.8,246.9 600.9,247.6 603.0,248.8 605.1,249.7 607.2,249.4 609.3,249.3 611.5,248.5 613.6,249.6 615.7,251.8 617.8,251.6 619.9,251.9 622.0,250.5 624.1,250.2 626.2,250.6 628.4,248.0 630.5,247.3 632.6,247.5 634.7,245.6 636.8,246.5 638.9,245.4 641.0,244.9 643.2,245.8 645.3,243.7 647.4,243.8 649.5,244.0 651.6,244.4 653.7,245.5 655.8,245.0 658.0,244.2 660.1,246.6 662.2,246.9 664.3,246.6 666.4,249.4 668.5,247.9 670.6,248.7 672.7,250.0 674.9,248.8 677.0,248.7 679.1,247.4 681.2,247.7 683.3,247.5 685.4,246.8 687.5,246.3 689.7,247.5 691.8,246.9 693.9,246.9 696.0,246.8"/><polyline class="line s2" points="64.0,33.4 114.7,222.2 167.6,236.3 220.4,234.2 273.3,234.5 326.1,234.2 378.9,232.4 431.8,234.4 484.6,232.9 537.5,234.8 590.3,234.0 643.2,234.2 696.0,235.6"/><circle class="dot s2" cx="64.0" cy="33.4" r="3"/><circle class="dot s2" cx="114.7" cy="222.2" r="3"/><circle class="dot s2" cx="167.6" cy="236.3" r="3"/><circle class="dot s2" cx="220.4" cy="234.2" r="3"/><circle class="dot s2" cx="273.3" cy="234.5" r="3"/><circle class="dot s2" cx="326.1" cy="234.2" r="3"/><circle class="dot s2" cx="378.9" cy="232.4" r="3"/><circle class="dot s2" cx="431.8" cy="234.4" r="3"/><circle class="dot s2" cx="484.6" cy="232.9" r="3"/><circle class="dot s2" cx="537.5" cy="234.8" r="3"/><circle class="dot s2" cx="590.3" cy="234.0" r="3"/><circle class="dot s2" cx="643.2" cy="234.2" r="3"/><circle class="dot s2" cx="696.0" cy="235.6" r="3"/></svg><ul class="legend"><li><svg width="30" height="10" aria-hidden="true"><line class="line s0 thin" x1="0" x2="30" y1="5" y2="5"/></svg> train (raw)</li><li><svg width="30" height="10" aria-hidden="true"><line class="line s1" x1="0" x2="30" y1="5" y2="5"/></svg> train (average of 15)</li><li><svg width="30" height="10" aria-hidden="true"><line class="line s2" x1="0" x2="30" y1="5" y2="5"/></svg> validation</li><li><svg width="30" height="10" aria-hidden="true"><line class="ref" x1="0" x2="30" y1="5" y2="5"/></svg> uniform guess ln(51) = 3.932</li></ul><details class="data"><summary>Show the data behind this chart</summary><div class="scroll" tabindex="0"><div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table><caption>Cross-entropy loss during the reference run (sampled steps)</caption><thead><tr><th scope="col">step</th><th scope="col">train (raw)</th><th scope="col">train (average of 15)</th><th scope="col">validation</th></tr></thead><tbody><tr><th scope="row">1</th><td>3.967</td><td>3.967</td><td>3.944</td></tr><tr><th scope="row">25</th><td>3.080</td><td>3.189</td><td>3.143</td></tr><tr><th scope="row">49</th><td>3.093</td><td>3.062</td><td>-</td></tr><tr><th scope="row">73</th><td>3.045</td><td>3.027</td><td>-</td></tr><tr><th scope="row">97</th><td>2.974</td><td>3.036</td><td>-</td></tr><tr><th scope="row">121</th><td>3.075</td><td>3.050</td><td>-</td></tr><tr><th scope="row">145</th><td>3.101</td><td>3.024</td><td>-</td></tr><tr><th scope="row">169</th><td>3.004</td><td>3.053</td><td>-</td></tr><tr><th scope="row">193</th><td>2.996</td><td>3.032</td><td>-</td></tr><tr><th scope="row">217</th><td>2.975</td><td>3.043</td><td>-</td></tr><tr><th scope="row">241</th><td>3.035</td><td>3.042</td><td>-</td></tr><tr><th scope="row">265</th><td>3.081</td><td>3.023</td><td>-</td></tr><tr><th scope="row">289</th><td>3.016</td><td>3.025</td><td>-</td></tr><tr><th scope="row">300</th><td>3.037</td><td>3.039</td><td>3.086</td></tr></tbody></table></div></div></details></figure>
+<p>The reference run (seed 42, AdamW, learning rate 0.003, batch 16, window 32) shows three things.</p>
+<ol>
+<li><strong>Fast initial drop.</strong> The training loss falls from 3.967 to about 3.16 by step 20 and to about 3.06 by step 30. This is the model learning the <em>unigram distribution</em>: which characters are common.</li>
+<li><strong>A plateau at the unigram floor.</strong> The validation loss sits between 3.090 and 3.100 for the rest of the run, ending at 3.086. The entropy of the character frequencies themselves is 3.031 nats on the training text and 3.085 on the validation text. A model that has learned <em>only</em> letter frequencies cannot do better than this, so after 300 steps the model has <strong>not yet learned to use context</strong>. Its perplexity is 21.9 on validation, against 51 for a uniform guess.</li>
+<li><strong>Cheap to run.</strong> The run takes 3.6 s on <code>mps</code> (about 42,000 tokens per second); the same seed gives identical losses on the CPU.</li>
+</ol>
+<h3 id="training-for-longer">Training for longer</h3>
+<p>Longer runs on the same corpus show what happens once the model starts using context:</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Scrollable table"><table>
+<thead>
+<tr>
+<th>Run</th>
+<th>Final training loss</th>
+<th>Validation loss at step 750</th>
+<th>Validation at step 1,000</th>
+<th>Final validation loss</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1,500 steps, window 32</td>
+<td>1.956</td>
+<td>2.780</td>
+<td>2.346</td>
+<td>2.134</td>
+</tr>
+<tr>
+<td>3,000 steps, window 64</td>
+<td>1.309</td>
+<td>2.643</td>
+<td>2.373</td>
+<td>2.182 (best 2.022 at step 1850)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Both longer runs stay on the unigram plateau (validation about 3.10 up to step 500 in the 3,000-step run) and then drop sharply between steps 500 and 750, well below the unigram entropy of 3.085. That sudden fall is the point at which the model starts to use context; the plateau is a stage the reference run never leaves within its 300 steps. The 3,000-step run is the classic <strong>overfitting</strong> picture: training loss 1.309 against a best validation loss of 2.022 reached at step 1850, then a worse validation loss at the end (2.182). The gap between the curves means the model is memorising the 4,389 training tokens rather than generalising. The usual remedies are more data, dropout, weight decay, a smaller model, and <em>early stopping</em> at the best validation step.</p>
+<div class="admonition warning">
+<p class="admonition-title">In-sample entropies are optimistic</p>
+<p>Bigram and trigram conditional entropies of the training text (2.18 and 1.31 nats) are measured on the same text they describe, so they flatter a model that memorises. Only the validation loss measures generalisation.</p>
+</div>
+<h2 id="evaluation">Evaluation</h2>
+<p>Every 25 steps by default (plus the first and the last step) the validation loss is estimated by averaging over 10 fixed random batches with dropout switched off. The batch generator is seeded with a constant, so two evaluations of identical weights return the same number and differences reflect the model rather than the sample.</p>
+<h2 id="checkpoints">Checkpoints</h2>
+<p>A checkpoint stores the model weights, architecture config, tokenizer vocabulary (the ids mean nothing without it), the training config, the loss history and the optimiser state, so a run can be reproduced or inspected later. Files are named with a timestamp and are never overwritten.</p>
+<h2 id="limitations">Limitations</h2>
+<ol>
+<li><strong>Tiny scale.</strong> The conclusions about the plateau and overfitting are specific to this corpus and model size; scaling laws (Kaplan et al., 2020) describe how loss improves with parameters, data and compute at much larger scales.</li>
+<li><strong>No data pipeline sophistication.</strong> Windows are sampled with replacement and may overlap; there is no epoch shuffling, packing or mixed precision.</li>
+<li><strong>Single seed.</strong> The numbers come from one seed. Run-to-run variation exists and is not quantified here.</li>
+<li><strong>Validation doubles as selection set.</strong> There is no separate test split, so picking the best validation step would slightly overstate performance.</li>
+</ol>
+<h2 id="where-to-go-next">Where to go next</h2>
+<p>The numbers and curves of this document are drawn by the <a href="07_visualization_explanation.html">visualisation layer</a>. The <a href="06_training_pipeline_implementation_guide.html">implementation guide</a> shows the loop, the data structures, the checkpoint format and the resume behaviour.</p>
+<h2 id="references">References</h2>
+<ol>
+<li>Rumelhart, D. E., Hinton, G. E., Williams, R. J. (1986). <em>Learning representations by back-propagating errors.</em> Nature 323.</li>
+<li>Polyak, B. T. (1964). <em>Some methods of speeding up the convergence of iteration methods.</em> USSR Computational Mathematics and Mathematical Physics 4(5).</li>
+<li>Kingma, D. P., Ba, J. (2015). <em>Adam: A Method for Stochastic Optimization.</em> ICLR.</li>
+<li>Loshchilov, I., Hutter, F. (2019). <em>Decoupled Weight Decay Regularization.</em> ICLR.</li>
+<li>Loshchilov, I., Hutter, F. (2017). <em>SGDR: Stochastic Gradient Descent with Warm Restarts.</em> ICLR.</li>
+<li>Goyal, P., et al. (2017). <em>Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour.</em> arXiv:1706.02677.</li>
+<li>Pascanu, R., Mikolov, T., Bengio, Y. (2013). <em>On the difficulty of training recurrent neural networks.</em> ICML.</li>
+<li>Kaplan, J., et al. (2020). <em>Scaling Laws for Neural Language Models.</em> arXiv:2001.08361.</li>
+</ol>
+</main>
+</div>
+<footer class="site">
+<div class="wrap">
+<p>All numbers are produced from the running code and the recorded reference run, not typed by hand.</p>
+<p>Generated by <code>scripts/build-docs.sh</code> from <code>Docs/subtasks/</code>. Made with IBM Bob.</p>
+</div>
+</footer>
+</body>
+</html>

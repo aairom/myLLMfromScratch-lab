@@ -4,3 +4,6 @@ plotly>=5.20
 numpy>=1.26
 python-dotenv>=1.0
 pytest>=8.0
+markdown>=3.5
+latex2mathml>=3.77
+pygments>=2.17
