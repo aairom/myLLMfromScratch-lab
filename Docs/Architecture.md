@@ -100,6 +100,26 @@ sequenceDiagram
     P-->>P: st.plotly_chart with unique key
 ```
 
+## Animations (`animgen/`)
+
+```mermaid
+flowchart LR
+    ENV[.env ANIM_* and CLI flags] --> OPT[options]
+    CTX[context<br/>real tokenizer, model, trainer run] --> SC
+    OPT --> CTX
+    SC[scenes_a..d<br/>one Scene per sub-task] --> RND[scene.render_scene<br/>tween frames and holds]
+    CNV[canvas, parts, theme, fonts<br/>Pillow drawing toolkit] --> SC
+    RND --> GIF[scene.save_gif<br/>shared palette]
+    GIF --> OUT[Docs/subtasks/animations/*.gif]
+    OUT --> GAL[gallery.py index.html]
+    REG[registry + cli] --> RND
+```
+
+A `Scene` is a caption per step plus one `draw(canvas, ctx, step, t)` function.
+The `Context` computes everything lazily from the project's own code, so a GIF
+that needs the trained model trains it once and the others stay fast. Like
+`llm/` and `training/`, the package never imports Streamlit.
+
 ## Design decisions
 
 - **Hand-written components**: `nn.MultiheadAttention`, `nn.TransformerEncoder`

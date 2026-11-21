@@ -78,3 +78,21 @@ def test_committed_pages_validate():
         pytest.skip("pages not built yet")
     problems = [p for path in pages for p in validate.check_file(path)]
     assert problems == []
+
+
+def test_index_links_animations_only_when_asked_and_anchors_exist():
+    from animgen import registry
+
+    assert "animations/index.html" not in build.index_markdown()
+    md = build.index_markdown(animations=True)
+    keys = {s.key for s in registry.ALL_SCENES}
+    for sub in catalog.SUBTASKS:
+        assert f"(animations/index.html#{sub.stem})" in md and sub.stem in keys
+
+
+def test_build_index_links_the_gallery_when_it_exists(tiny_docs):
+    plain = build.build_index(tiny_docs).read_text(encoding="utf-8")
+    assert "animations/index.html" not in plain
+    (tiny_docs / "animations").mkdir()
+    (tiny_docs / "animations" / "index.html").write_text("<html></html>")
+    assert "animations/index.html#01_scaffolding" in build.build_index(tiny_docs).read_text(encoding="utf-8")

@@ -109,6 +109,30 @@ The generator is the `docsgen/` package (Markdown, latex2mathml and Pygments).
 Every number in the pages is read from the running code or the recorded
 reference run, and every page is validated during the build.
 
+## Animated explanations
+
+One looping GIF per sub-task (eleven in total: sub-task 5 has a second one for
+text generation) shows the maths, the architecture and the data flow with
+colour-coded labels: queries are always orange, keys and tokens blue, values
+green, positions purple and the loss red. Every number comes from the real code
+(tokenizer, model, trainer), not from typed-in values.
+
+- **See them:** open [Docs/subtasks/animations/index.html](Docs/subtasks/animations/index.html)
+  in a browser (a gallery with captions and links to the written guides), or open
+  any `Docs/subtasks/animations/*.gif` directly in a browser or Finder.
+- **Regenerate or customise them:**
+
+```bash
+scripts/generate-animations.sh                    # all GIFs (about 20 s)
+scripts/generate-animations.sh --only 4 6         # sub-tasks 4 and 6
+scripts/generate-animations.sh --quick --out /tmp/preview   # fast, small preview
+scripts/generate-animations.sh --list             # what exists
+```
+
+Size, speed, training length and the example sentence are set with the
+`ANIM_*` variables of `.env` (see `.env.example`) or the command-line flags.
+The generator is the `animgen/` package and uses only Pillow.
+
 ## Project layout
 
 | Folder | Purpose |
@@ -121,9 +145,11 @@ reference run, and every page is validated during the build.
 | `pages/` | One file per lesson page (`page_<name>.py`) |
 | `data/` | Bundled demo corpus |
 | `input/`, `output/` | Optional extra training text; timestamped results |
-| `scripts/` | `start.sh`, `stop.sh`, `cleanup.sh`, `build-docs.sh` |
+| `scripts/` | `start.sh`, `stop.sh`, `cleanup.sh`, `build-docs.sh`, `generate-animations.sh` |
 | `docsgen/` | Generator that builds the HTML documentation from Markdown |
+| `animgen/` | Generator of the animated GIFs (Pillow only) |
 | `Docs/subtasks/` | Explanations and implementation guides for the ten sub-tasks |
+| `Docs/subtasks/animations/` | The generated GIFs and their `index.html` gallery |
 | `tests/` | pytest suite, one test module per source module |
 
 ## Tests

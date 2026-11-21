@@ -66,7 +66,19 @@ explanation and the implementation guide of each of the ten sub-tasks. After
 editing a Markdown source in `Docs/subtasks/`, run `scripts/build-docs.sh`
 (`--only N` rebuilds one sub-task).
 
-## 7. Run the tests
+## 7. Watch the animations
+
+Open `Docs/subtasks/animations/index.html` in a browser to see one looping GIF
+per sub-task. To regenerate them, or to change size, speed or the example
+sentence (`ANIM_*` in `.env`):
+
+```bash
+scripts/generate-animations.sh               # all GIFs
+scripts/generate-animations.sh --only 5      # one sub-task (number or name part)
+scripts/generate-animations.sh --quick       # fast preview
+```
+
+## 8. Run the tests
 
 ```bash
 bash .bob/skills/test-gate/scripts/run_tests.sh .

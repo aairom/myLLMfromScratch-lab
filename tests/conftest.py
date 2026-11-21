@@ -40,3 +40,22 @@ def assert_clean(at: AppTest) -> None:
     """A page must render without exceptions or error banners."""
     assert not at.exception, [str(e.value) for e in at.exception]
     assert not at.error, [str(e.value) for e in at.error]
+
+
+# --- animgen: one small, fast context shared by all animation tests ------------- #
+@pytest.fixture(scope="session")
+def anim_opt(tmp_path_factory):
+    """Quick options (640x360, no supersampling, 30 training steps) writing into a temp folder."""
+    from dataclasses import replace
+
+    from animgen.options import Options
+
+    return replace(Options(out_dir=tmp_path_factory.mktemp("anim")).quick(), hold_ms=200)
+
+
+@pytest.fixture(scope="session")
+def anim_ctx(anim_opt):
+    """The lazily computed facts of the animations (trains the tiny model once per test session)."""
+    from animgen.context import Context
+
+    return Context(anim_opt)

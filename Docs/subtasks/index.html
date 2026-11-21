@@ -360,60 +360,70 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <ul>
 <li><a href="01_scaffolding_explanation.html">Scientific explanation</a></li>
 <li><a href="01_scaffolding_implementation_guide.html">Implementation guide</a></li>
+<li><a href="animations/index.html#01_scaffolding">Animation</a></li>
 </ul>
 <h3 id="2-tokenization">2. Tokenization</h3>
 <p>From text to integer ids: character vocabulary and a hand-written byte-pair encoder.</p>
 <ul>
 <li><a href="02_tokenization_explanation.html">Scientific explanation</a></li>
 <li><a href="02_tokenization_implementation_guide.html">Implementation guide</a></li>
+<li><a href="animations/index.html#02_tokenization">Animation</a></li>
 </ul>
 <h3 id="3-embeddings-and-positional-encoding">3. Embeddings and positional encoding</h3>
 <p>Lookup-table embeddings, initialisation, and sinusoidal or learned position signals.</p>
 <ul>
 <li><a href="03_embeddings_positional_explanation.html">Scientific explanation</a></li>
 <li><a href="03_embeddings_positional_implementation_guide.html">Implementation guide</a></li>
+<li><a href="animations/index.html#03_embeddings_positional">Animation</a></li>
 </ul>
 <h3 id="4-attention-multi-head-attention-layernorm-and-feed-forward">4. Attention, multi-head attention, LayerNorm and feed-forward</h3>
 <p>Scaled dot-product attention with a causal mask, heads, layer normalisation and the GELU MLP.</p>
 <ul>
 <li><a href="04_attention_layers_explanation.html">Scientific explanation</a></li>
 <li><a href="04_attention_layers_implementation_guide.html">Implementation guide</a></li>
+<li><a href="animations/index.html#04_attention_layers">Animation</a></li>
 </ul>
 <h3 id="5-full-transformer-gpt-and-generation">5. Full transformer (GPT) and generation</h3>
 <p>Pre-norm blocks, residual stream, tied output head, cross-entropy loss and sampling.</p>
 <ul>
 <li><a href="05_gpt_model_explanation.html">Scientific explanation</a></li>
 <li><a href="05_gpt_model_implementation_guide.html">Implementation guide</a></li>
+<li><a href="animations/index.html#05_gpt_model">Animation</a></li>
 </ul>
 <h3 id="6-training-pipeline">6. Training pipeline</h3>
 <p>Windowed data, backpropagation, hand-written Adam and SGD, learning-rate schedules, checkpoints.</p>
 <ul>
 <li><a href="06_training_pipeline_explanation.html">Scientific explanation</a></li>
 <li><a href="06_training_pipeline_implementation_guide.html">Implementation guide</a></li>
+<li><a href="animations/index.html#06_training_pipeline">Animation</a></li>
 </ul>
 <h3 id="7-visualization-layer">7. Visualization layer</h3>
 <p>Plotly figure builders: PCA projections, heat maps, attention maps and live training curves.</p>
 <ul>
 <li><a href="07_visualization_explanation.html">Scientific explanation</a></li>
 <li><a href="07_visualization_implementation_guide.html">Implementation guide</a></li>
+<li><a href="animations/index.html#07_visualization">Animation</a></li>
 </ul>
 <h3 id="8-educational-content-layer">8. Educational content layer</h3>
 <p>Lessons as data, LaTeX formulas and code snippets read live from the running source.</p>
 <ul>
 <li><a href="08_educational_content_explanation.html">Scientific explanation</a></li>
 <li><a href="08_educational_content_implementation_guide.html">Implementation guide</a></li>
+<li><a href="animations/index.html#08_educational_content">Animation</a></li>
 </ul>
 <h3 id="9-streamlit-application-and-learning-pages">9. Streamlit application and learning pages</h3>
 <p>Navigation, shared session state, ten pages, live training lab and inference page.</p>
 <ul>
 <li><a href="09_streamlit_app_explanation.html">Scientific explanation</a></li>
 <li><a href="09_streamlit_app_implementation_guide.html">Implementation guide</a></li>
+<li><a href="animations/index.html#09_streamlit_app">Animation</a></li>
 </ul>
 <h3 id="10-scripts-documentation-and-compliance">10. Scripts, documentation and compliance</h3>
 <p>One-command lifecycle scripts, project documents, secret scan, test gate and audit.</p>
 <ul>
 <li><a href="10_scripts_docs_compliance_explanation.html">Scientific explanation</a></li>
 <li><a href="10_scripts_docs_compliance_implementation_guide.html">Implementation guide</a></li>
+<li><a href="animations/index.html#10_scripts_docs_compliance">Animation</a></li>
 </ul>
 <h2 id="how-these-pages-are-made">How these pages are made</h2>
 <p>The Markdown sources live next to the pages. <code>scripts/build-docs.sh</code> converts them with the <code>docsgen</code> package: formulas become MathML, code excerpts are read from the live source with <code>inspect</code>, and every number is looked up from the code or the recorded run. The build then validates each page (one <code>h1</code>, heading order, accessible SVG, no external resources, no unresolved placeholders).</p>

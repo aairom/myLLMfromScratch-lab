@@ -420,7 +420,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </tbody>
 </table></div>
 <h2 id="configuration">Configuration</h2>
-<figure class="source"><figcaption>.env.example (16 lines)</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Bash code"><span></span><code><span class="c1"># Copy this file to .env and adjust. .env is git-ignored; this file is committed.</span>
+<figure class="source"><figcaption>.env.example (33 lines)</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Bash code"><span></span><code><span class="c1"># Copy this file to .env and adjust. .env is git-ignored; this file is committed.</span>
 
 <span class="c1"># Port the Streamlit app listens on (never use 5000: reserved by AirDrop on macOS)</span>
 <span class="nv">APP_PORT</span><span class="o">=</span><span class="m">8601</span>
@@ -436,6 +436,23 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <span class="nv">INPUT_DIR</span><span class="o">=</span>input
 <span class="c1"># Folder for checkpoints and metrics (timestamped file names)</span>
 <span class="nv">OUTPUT_DIR</span><span class="o">=</span>output
+
+<span class="c1"># --- Animated GIF generator (scripts/generate-animations.sh) ---</span>
+<span class="c1"># Folder for the GIFs and their index.html gallery (relative to the project root)</span>
+<span class="nv">ANIM_OUTPUT_DIR</span><span class="o">=</span>Docs/subtasks/animations
+<span class="c1"># Pixel size of every GIF (480x270 to 1920x1920; 800x450 keeps files small)</span>
+<span class="nv">ANIM_WIDTH</span><span class="o">=</span><span class="m">800</span>
+<span class="nv">ANIM_HEIGHT</span><span class="o">=</span><span class="m">450</span>
+<span class="c1"># Milliseconds per tween frame (60 is about 16 frames per second)</span>
+<span class="nv">ANIM_FRAME_MS</span><span class="o">=</span><span class="m">60</span>
+<span class="c1"># Training steps behind the training and inference GIFs (fewer = faster, noisier text)</span>
+<span class="nv">ANIM_TRAIN_STEPS</span><span class="o">=</span><span class="m">300</span>
+<span class="c1"># The sentence that travels through the animations</span>
+<span class="nv">ANIM_PHRASE</span><span class="o">=</span>The<span class="w"> </span>robot<span class="w"> </span><span class="nb">read</span><span class="w"> </span>the<span class="w"> </span>book
+<span class="c1"># Optional TrueType fonts; leave empty to search the system fonts</span>
+<span class="nv">ANIM_FONT</span><span class="o">=</span>
+<span class="nv">ANIM_FONT_BOLD</span><span class="o">=</span>
+<span class="nv">ANIM_FONT_MONO</span><span class="o">=</span>
 </code></pre></div>
 </figure>
 <figure class="source"><figcaption>config.py, lines 39-53: config.load_settings</figcaption><div class="code"><pre tabindex="0" role="region" aria-label="Python code"><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_settings</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Settings</span><span class="p">:</span>

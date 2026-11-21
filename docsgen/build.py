@@ -51,8 +51,14 @@ def build_document(sub: catalog.SubTask, kind: str, docs_dir: Path = DOCS_DIR) -
     return dest
 
 
-def index_markdown() -> str:
-    """Markdown for the index page (the cards are plain HTML kept inside it)."""
+ANIMATIONS_INDEX = "animations/index.html"  # written by animgen; linked from the index when present
+
+
+def index_markdown(animations: bool = False) -> str:
+    """Markdown for the index page (the cards are plain HTML kept inside it).
+
+    ``animations`` adds a link per sub-task to the GIF gallery next to the pages.
+    """
     lines = [
         "# Documentation of the ten sub-tasks",
         "",
@@ -84,8 +90,10 @@ def index_markdown() -> str:
             "",
             f"- [Scientific explanation]({sub.explanation_html})",
             f"- [Implementation guide]({sub.guide_html})",
-            "",
         ]
+        if animations:
+            lines.append(f"- [Animation](animations/index.html#{sub.stem})")
+        lines.append("")
     lines += [
         "## How these pages are made",
         "",
@@ -100,7 +108,7 @@ def index_markdown() -> str:
 
 
 def build_index(docs_dir: Path = DOCS_DIR) -> Path:
-    rendered = render(index_markdown())
+    rendered = render(index_markdown((docs_dir / ANIMATIONS_INDEX).is_file()))
     meta = page.PageMeta(
         title="Sub-task documentation",
         kicker=f"{page.PROJECT_NAME} \u00b7 Index",
