@@ -40,20 +40,20 @@ never import Streamlit, so they can be tested and read on their own.
 ## The model (`llm/`)
 
 ```mermaid
-flowchart LR
+flowchart TD
     T[text] --> TK[Tokenizer<br/>char or BPE]
     TK --> ID[token ids]
     ID --> EM[Token embedding<br/>lookup table]
     EM --> PE[+ positional encoding<br/>sinusoidal or learned]
-    PE --> B1
-    subgraph B1[Transformer block x N]
-        direction TB
+    PE --> LN1
+    subgraph BLK[Transformer block x N]
         LN1[LayerNorm] --> MHA[Causal multi-head<br/>self-attention]
         MHA --> R1((+))
-        R1 --> LN2[LayerNorm] --> FF[Feed-forward<br/>Linear, GELU, Linear]
+        R1 --> LN2[LayerNorm]
+        LN2 --> FF[Feed-forward<br/>Linear, GELU, Linear]
         FF --> R2((+))
     end
-    B1 --> LNF[Final LayerNorm]
+    R2 --> LNF[Final LayerNorm]
     LNF --> HD[LM head<br/>tied with embedding]
     HD --> LG[logits]
     LG --> SM[softmax, sampling]
@@ -104,7 +104,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    ENV[.env ANIM_* and CLI flags] --> OPT[options]
+    ENV["ANIM_ variables in .env and CLI flags"] --> OPT[options]
     CTX[context<br/>real tokenizer, model, trainer run] --> SC
     OPT --> CTX
     SC[scenes_a..d<br/>one Scene per sub-task] --> RND[scene.render_scene<br/>tween frames and holds]
